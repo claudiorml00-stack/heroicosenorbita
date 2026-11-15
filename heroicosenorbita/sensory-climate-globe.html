@@ -1,0 +1,3095 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="EarthSense Music. Explore a local video with a cursor that follows your index finger using MediaPipe.">
+  <meta name="version" content="2.3-localhost-cdn-fix">
+  <title>EarthSense — Interactive Globe</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #070e1c;
+      --panel: #101b2d;
+      --line: #2a3b53;
+      --text: #eef5ff;
+      --muted: #a9bbd2;
+      --cyan: #67dafa;
+      --green: #7de2b1;
+      --amber: #ffd38a;
+      --radius: 18px;
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    body { margin: 0; background: var(--bg); color: var(--text); line-height: 1.5; }
+    body::before {
+      content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+      background: radial-gradient(ellipse at 25% 0, #13335666, transparent 55%);
+    }
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled, input:disabled { cursor: not-allowed; opacity: .45; }
+    button, a, input { -webkit-tap-highlight-color: transparent; }
+    :focus-visible { outline: 3px solid var(--amber); outline-offset: 5px; }
+    a { color: var(--cyan); }
+    svg { flex-shrink: 0; }
+    .icon { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+    .skip { position: fixed; left: 20px; top: -100px; z-index: 20; padding: 12px 20px; background: var(--text); color: var(--bg); border-radius: 8px; }
+    .skip:focus { top: 12px; }
+    .shell { max-width: 1480px; padding: 0 40px; margin: auto; }
+    .topbar { border-bottom: 1px solid var(--line); background: #091322d9; }
+    .topbar-inner { min-height: 88px; display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+    .brand { display: flex; align-items: center; gap: 13px; }
+    .brand-mark { width: 44px; height: 44px; color: var(--cyan); }
+    .brand-name { font-size: 21px; font-weight: 700; letter-spacing: -.7px; }
+    .brand-name span { color: var(--cyan); font-weight: 400; }
+    .eyebrow { color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
+    .privacy { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 12px; }
+    .privacy .icon { width: 16px; color: var(--green); }
+    main { padding-top: 34px !important; padding-bottom: 28px !important; }
+    .intro { display: flex; justify-content: space-between; align-items: center; gap: 24px; margin-bottom: 27px; }
+    .phase { color: var(--cyan); font-size: 11px; letter-spacing: 2px; font-weight: 650; }
+    .phase::before { content: ""; display: inline-block; width: 19px; height: 2px; margin: 0 10px 3px 0; background: var(--cyan); }
+    h1 { font-size: clamp(26px, 3vw, 38px); line-height: 1.2; letter-spacing: -1.2px; font-weight: 600; margin: 10px 0; }
+    .intro p { color: var(--muted); font-size: 14px; margin: 0; }
+    .start-wrap { min-width: 230px; text-align: center; }
+    .start-wrap small { display: block; color: var(--muted); font-size: 11px; max-width: 260px; margin-top: 8px; }
+    .button {
+      display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 44px;
+      border: 1px solid #3b536f; border-radius: 9px; padding: 11px 16px;
+      background: #18283f; color: var(--text); font-size: 13px; font-weight: 600;
+      transition: background .15s, border-color .15s;
+    }
+    .button:hover:not(:disabled) { background: #203754; border-color: var(--cyan); }
+    .button.primary { background: var(--cyan); border-color: var(--cyan); color: #062036; }
+    .button.primary:hover:not(:disabled) { background: #9ae9ff; }
+    .button.primary:disabled { background: #28475c; border-color: #416479; color: #b3c6d2; opacity: .8; }
+    .button.wide { width: 100%; }
+    .button.quiet { background: transparent; border-color: var(--line); }
+    .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 22px; align-items: start; }
+    .main-column, .side-column { display: grid; gap: 18px; min-width: 0; }
+    .panel { border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); overflow: hidden; }
+    .viewer { box-shadow: 0 18px 65px #0003; }
+    .panel-head { min-height: 60px; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 20px; border-bottom: 1px solid var(--line); }
+    h2 { font-size: 14px; font-weight: 600; margin: 0; }
+    .panel-title { display: flex; align-items: center; gap: 9px; }
+    .panel-title .icon { color: var(--cyan); width: 18px; }
+    .badge { display: inline-flex; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; }
+    .badge::before { content: ""; height: 6px; width: 6px; border-radius: 50%; background: #8b9fb8; flex-shrink: 0; }
+    .badge[data-active="true"] { color: var(--green); }
+    .badge[data-active="true"]::before { background: var(--green); box-shadow: 0 0 8px #7de2b155; }
+    .stage {
+      position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden; isolation: isolate;
+      background-color: #080f1a;
+      background-image: linear-gradient(#6ab4db08 1px, transparent 1px), linear-gradient(90deg, #6ab4db08 1px, transparent 1px);
+      background-size: 38px 38px;
+    }
+    .stage canvas { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+    #cameraLayer { z-index: 1; }
+    #videoLayer { z-index: 2; opacity: .6; }
+    #handLayer { z-index: 5; }
+    .stage.mouse-mode { cursor: crosshair; }
+    .tracking-readout { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px 16px; padding: 10px 20px; border-top: 1px solid var(--line); background: #0b1929; }
+    #handStatus { font-size: 12px; color: var(--cyan); margin: 0; }
+    #pointerPosition { color: var(--muted); font: 11px ui-monospace, Consolas, monospace; }
+    .tracking-options { border-top: 1px solid var(--line); margin-top: 12px; padding-top: 6px; }
+    .test-option { color: var(--amber); }
+    .model-state { color: var(--muted); font-size: 12px; margin: 10px 0; }
+    .model-state[data-state="error"] { color: var(--amber); }
+    #modelDiagnostics { overflow-wrap: anywhere; }
+    .model-help { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 10px; color: var(--muted); font-size: 11px; }
+    .model-help summary { cursor: pointer; color: var(--cyan); font-weight: 600; }
+    .model-help p { margin: 8px 0; }
+    .local-model-button { margin-top: 5px; font-size: 11px; width: 100%; }
+    .model-help code { color: var(--text); }
+    #modelDiagnostics { white-space: pre-wrap; line-height: 1.55; font-size: 11px; }
+    .connection-test { width: 100%; margin-top: 10px; }
+    .model-diagnostic-label { color: var(--cyan); font-weight: 600; }
+    .model-extra { border-left: 2px solid var(--cyan); padding-left: 9px; }
+    .viewer:fullscreen .tracking-readout { flex-shrink: 0; }
+    .stage::after { content: ""; position: absolute; inset: 17px; border: 1px solid #7ccdfb14; pointer-events: none; z-index: 3; }
+    .empty-state { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px; text-align: center; }
+    .orbit { width: 108px; height: 108px; color: #62c9f4; margin-bottom: 18px; filter: drop-shadow(0 0 18px #2985bb55); }
+    .empty-state h3 { font-weight: 500; font-size: 19px; margin: 0 0 7px; }
+    .empty-state p { max-width: 330px; color: var(--muted); font-size: 13px; margin: 0; }
+    .stage-caption { position: absolute; left: 22px; top: 19px; z-index: 4; background: #07101be6; border: 1px solid #405a73; border-radius: 5px; padding: 4px 8px; color: #bed6e7; font-size: 9px; letter-spacing: 1.3px; pointer-events: none; }
+    .transport { padding: 14px 20px 17px; border-top: 1px solid var(--line); background: #111e31; }
+    .transport-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+    .transport-buttons { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+    .transport .button { min-height: 40px; padding: 8px 11px; font-size: 12px; }
+    .transport .play { color: var(--cyan); border-color: #3a6179; background: #143248; min-width: 130px; }
+    .timecode { display: flex; gap: 6px; color: var(--muted); font: 11px ui-monospace, Consolas, monospace; white-space: nowrap; }
+    .timecode span:first-child { color: var(--text); }
+    input[type="range"] { accent-color: var(--cyan); width: 100%; min-height: 28px; margin: 0; cursor: pointer; }
+    .timeline { display: grid; grid-template-columns: 1fr auto; gap: 14px; align-items: center; margin-top: 10px; }
+    .mix { padding: 20px; }
+    .mix-title { display: flex; justify-content: space-between; gap: 12px; align-items: center; }
+    .mix-title label { font-size: 14px; font-weight: 600; }
+    .mix-title output { color: var(--cyan); font: 19px ui-monospace, Consolas, monospace; }
+    .hint { font-size: 12px; color: var(--muted); margin: 7px 0 12px; }
+    .range-ends { display: flex; justify-content: space-between; gap: 16px; color: var(--muted); font-size: 10px; }
+    .source-card { padding: 19px; }
+    .section-number { color: var(--cyan); background: #18334a; border: 1px solid #31516a; border-radius: 6px; padding: 3px 7px; font: 11px ui-monospace, Consolas, monospace; }
+    .source-title { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+    .source-title h2 { font-size: 14px; }
+    .file-card { display: flex; align-items: flex-start; gap: 10px; border: 1px solid var(--line); background: #0c1727; padding: 13px; border-radius: 8px; margin-top: 12px; }
+    .file-card .icon { color: var(--muted); width: 18px; margin-top: 2px; }
+    .file-details { min-width: 0; }
+    #fileName { font-size: 12px; margin: 0; overflow-wrap: anywhere; }
+    #fileMeta { font-size: 10px; color: var(--muted); margin: 4px 0 0; }
+    .source-note { color: var(--muted); font-size: 10px; margin: 10px 0 0; }
+    .preview { position: relative; aspect-ratio: 16 / 9; background: #08111e; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; margin-bottom: 13px; }
+    #cameraPreview { display: block; width: 100%; height: 100%; object-fit: contain; }
+    #cameraPreview.mirrored { transform: scaleX(-1); }
+    .preview-empty { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 8px; color: var(--muted); font-size: 11px; padding: 10px; text-align: center; }
+    .preview-empty .icon { width: 26px; height: 26px; color: #6886a6; }
+    .preview-label { position: absolute; top: 8px; left: 9px; color: var(--green); background: #08111ee6; padding: 2px 6px; border-radius: 4px; font-size: 9px; letter-spacing: 1px; }
+    .check-row { display: flex; align-items: center; gap: 9px; font-size: 12px; min-height: 44px; cursor: pointer; color: #c5d3e5; }
+    input[type="checkbox"] { accent-color: var(--cyan); width: 17px; height: 17px; flex-shrink: 0; margin: 0; }
+    .camera-info { font-size: 11px; color: var(--muted); margin: 0; }
+    .guide { padding: 0 5px; }
+    .guide h2 { color: var(--muted); font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; margin: 0 0 11px; }
+    .guide ol { list-style: none; counter-reset: steps; padding: 0; margin: 0; display: grid; gap: 10px; }
+    .guide li { counter-increment: steps; display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--muted); }
+    .guide li::before { content: counter(steps); display: grid; place-items: center; width: 21px; height: 21px; flex-shrink: 0; border: 1px solid #476079; border-radius: 50%; font: 10px ui-monospace, Consolas, monospace; }
+    .status-line { display: flex; gap: 11px; align-items: flex-start; border: 1px solid var(--line); border-radius: 10px; padding: 13px 16px; margin-top: 21px; background: #101e30; }
+    .status-line .icon { color: var(--cyan); width: 18px; height: 18px; margin-top: 1px; }
+    #status { margin: 0; font-size: 12px; color: #c9d9eb; }
+    .error { margin: 12px 0 0; padding: 13px 16px; border: 1px solid #b98167; background: #38251f; color: #ffdfc2; border-radius: 10px; font-size: 13px; }
+    .error:empty { display: none; }
+    footer { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px 25px; color: var(--muted); border-top: 1px solid var(--line); padding-top: 17px; margin-top: 23px; font-size: 10px; }
+    footer span:last-child { color: #91a9c3; }
+    .viewer:fullscreen { width: 100%; height: 100%; border: 0; border-radius: 0; display: flex; flex-direction: column; background: var(--bg); overflow: auto; }
+    .viewer:fullscreen .panel-head, .viewer:fullscreen .transport { flex-shrink: 0; }
+    .viewer:fullscreen .stage { flex: 1; min-height: 80px; aspect-ratio: auto; }
+    .fullscreen-extra { padding-top: 12px; }
+    .fullscreen-extra label { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--muted); }
+    .fullscreen-extra input { width: min(55%, 400px); }
+    .fullscreen-status { color: var(--muted); font-size: 12px; margin: 9px 0 0; }
+    @media (min-width: 1500px) { main { padding-top: 45px !important; } }
+    @media (max-width: 1100px) {
+      .shell { padding-left: 24px; padding-right: 24px; }
+      .workspace { grid-template-columns: minmax(0, 1fr) 285px; gap: 16px; }
+      .panel-head, .transport { padding-left: 14px; padding-right: 14px; }
+      .fullscreen-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+      .transport .play { min-width: 112px; }
+    }
+    @media (max-width: 850px) {
+      .workspace { grid-template-columns: 1fr; }
+      .side-column { grid-template-columns: 1fr 1fr; align-items: start; }
+      .guide { grid-column: 1 / -1; }
+      .guide ol { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
+      .intro { align-items: flex-start; }
+      .start-wrap { min-width: 195px; }
+      .start-wrap .button { padding-left: 12px; padding-right: 12px; }
+    }
+    @media (max-width: 580px) {
+      .shell { padding-left: 16px; padding-right: 16px; }
+      .topbar-inner { min-height: 76px; }
+      .brand-name { font-size: 19px; }
+      .brand-mark { width: 36px; height: 36px; }
+      .brand .eyebrow { font-size: 8px; letter-spacing: 1.5px; }
+      .privacy span { display: none; }
+      .intro { flex-direction: column; gap: 19px; }
+      .start-wrap { width: 100%; }
+      .start-wrap .button { width: 100%; }
+      .start-wrap small { max-width: none; }
+      .side-column { grid-template-columns: 1fr; }
+      .stage { aspect-ratio: 4 / 3; }
+      .orbit { width: 68px; height: 68px; margin-bottom: 10px; }
+      .empty-state h3 { font-size: 17px; }
+      .empty-state p { font-size: 12px; }
+      .panel-head { gap: 8px; }
+      .panel-head h2 { font-size: 12px; }
+      .badge { font-size: 8px; }
+      .transport { padding: 12px; }
+      .transport-buttons { gap: 5px; }
+      .transport .button { padding: 8px; }
+      .transport .play { min-width: 0; }
+      .transport .icon { width: 17px; }
+      .restart-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+      footer { font-size: 10px; }
+    }
+    /* ── Fase 3 · Video Frames and Sonification ── */
+    .sonic-body { padding: 18px 20px 20px; display: grid; gap: 14px; }
+    .sonic-status { margin: 0; font-size: 12px; color: #c9d9eb; }
+    .sonic-progress { height: 4px; background: #16263b; border-radius: 4px; overflow: hidden; }
+    .sonic-progress div { height: 100%; width: 0; background: var(--cyan); transition: width .15s; }
+    .sonic-main { display: grid; grid-template-columns: minmax(0, 270px) minmax(0, 1fr); gap: 16px; align-items: start; }
+    .sonic-preview { position: relative; margin: 0; aspect-ratio: 16 / 9; background: #08111e; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; display: grid; place-items: center; color: var(--muted); font-size: 11px; text-align: center; padding: 6px; }
+    .sonic-preview img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; display: block; }
+    .sonic-preview figcaption { position: absolute; left: 7px; bottom: 7px; z-index: 1; background: #07101be6; border: 1px solid #405a73; border-radius: 5px; padding: 2px 7px; font: 10px ui-monospace, Consolas, monospace; color: #bed6e7; }
+    .sonic-map { display: grid; gap: 8px; font-size: 12px; color: #c5d3e5; margin: 0; padding: 0; list-style: none; }
+    .sonic-map li { display: flex; gap: 8px; align-items: center; min-width: 0; }
+    .sonic-map b { color: var(--cyan); font-weight: 600; min-width: 74px; font-size: 10px; letter-spacing: .8px; text-transform: uppercase; }
+    .sonic-map span { overflow-wrap: anywhere; }
+    .swatch { width: 14px; height: 14px; border-radius: 50%; border: 1px solid #ffffff44; flex-shrink: 0; background: #38bdf8; }
+    #sonicScope { display: block; width: 100%; height: 56px; background: #08111e; border: 1px solid var(--line); border-radius: 8px; margin-top: 12px; }
+    .sonic-reel { display: flex; gap: 9px; overflow-x: auto; padding: 4px 2px 10px; scroll-snap-type: x proximity; }
+    .sonic-reel:empty { display: none; }
+    .frame-card { flex: 0 0 116px; scroll-snap-align: center; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: #0c1727; overflow: hidden; text-align: left; color: var(--text); }
+    .frame-card:hover { border-color: #5a86a6; }
+    .frame-card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; display: block; }
+    .frame-card span { display: flex; justify-content: space-between; gap: 4px; padding: 4px 6px; font: 10px ui-monospace, Consolas, monospace; color: var(--muted); }
+    .frame-card[aria-current="true"] { border-color: var(--cyan); box-shadow: 0 0 0 1px var(--cyan), 0 0 14px #67dafa44; }
+    .sonic-controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px 18px; align-items: end; }
+    .sonic-controls .field { display: grid; gap: 4px; font-size: 11px; color: var(--muted); }
+    .sonic-controls .field > span { display: flex; justify-content: space-between; gap: 8px; }
+    .sonic-controls output { color: var(--cyan); font: 11px ui-monospace, Consolas, monospace; }
+    .sonic-controls select { min-height: 36px; background: #0c1727; color: var(--text); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; }
+    .sonic-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .sonic-actions .button { min-height: 40px; padding: 8px 13px; font-size: 12px; }
+    .sonic-actions .check-row { min-height: 40px; margin-left: auto; }
+    @media (max-width: 850px) { .sonic-main { grid-template-columns: 1fr; } }
+    /* ── Continuous ML Tonality ── */
+    .stage-ml-badge { position: absolute; right: 22px; top: 19px; z-index: 4; background: rgba(7, 16, 27, 0.85); border: 1px solid rgba(103, 218, 250, 0.45); border-radius: 999px; padding: 4px 12px; font: 11px ui-monospace, Consolas, monospace; color: #c9e3f6; display: inline-flex; align-items: center; gap: 8px; backdrop-filter: blur(8px); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45); pointer-events: none; transition: opacity .3s, transform .3s; }
+    .stage-ml-badge[hidden] { display: none; }
+    .stage-ml-badge .ml-dot { width: 10px; height: 10px; border-radius: 50%; background: #38bdf8; box-shadow: 0 0 10px #38bdf8; flex-shrink: 0; transition: background-color .2s, box-shadow .2s; }
+    .ml-clusters-wrap { display: grid; gap: 8px; margin-top: 4px; padding: 10px 14px; background: #08111e; border: 1px solid var(--line); border-radius: 8px; }
+    .ml-clusters-title { font-size: 11px; font-weight: 600; color: var(--cyan); letter-spacing: .5px; text-transform: uppercase; }
+    .ml-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+    .ml-pill { display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; background: #0c1727; border: 1px solid #1e354f; border-radius: 999px; font: 10px ui-monospace, Consolas, monospace; color: #b6cde2; transition: all .2s; }
+    .ml-pill.active { border-color: var(--cyan); background: #122842; box-shadow: 0 0 12px rgba(103, 218, 250, 0.35); color: #fff; }
+    .ml-pill-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+  </style>
+
+<style>
+#thermalWorld{margin:24px auto 0;border:1px solid #365877;border-radius:18px;background:#09172a;padding:18px;color:#eef6ff}
+#thermalWorld *{box-sizing:border-box}
+#thermalWorld .tw-head{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+#thermalWorld h2{font-size:22px;color:#81e0fb}
+#thermalWorld .tw-layout{display:grid;grid-template-columns:minmax(0,1fr) 285px;gap:16px}
+#thermalWorld .tw-viewport{position:relative;height:480px;background:radial-gradient(ellipse at center,#15294a,#020916 75%);border:1px solid #375a7a;border-radius:13px;overflow:hidden;touch-action:none}
+#thermalWorld canvas{width:100%;height:100%;display:block;touch-action:none;cursor:default;pointer-events:none}
+#thermalWorld #tw-camera{position:absolute;right:12px;bottom:12px;width:116px;height:83px;object-fit:cover;border:1px solid #61d9f4;border-radius:10px;transform:scaleX(-1);background:#08111d;pointer-events:none}
+#thermalWorld #tw-handstate{position:absolute;bottom:105px;right:12px;max-width:180px;background:#071527d9;color:#a8edff;font-size:11px;border-radius:7px;padding:5px 8px;pointer-events:none}
+#thermalWorld .tw-primary{background:#126a80;border-color:#43d3f4;font-weight:700}
+#thermalWorld .tw-over{position:absolute;top:12px;left:12px;color:#c1e2f4;font-size:11px;background:#071527cc;padding:7px 10px;border-radius:8px;pointer-events:none}
+#thermalWorld .tw-side{background:#101f35;border-radius:13px;padding:15px;border:1px solid #2c496c;display:flex;flex-direction:column;gap:12px}
+#thermalWorld button{background:#15304b;color:#e8f7ff;border:1px solid #416f99;border-radius:9px;padding:9px 12px;cursor:pointer;font-size:12px}
+#thermalWorld button:hover{background:#1d4a6c}
+#thermalWorld .tw-actions{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px}
+#thermalWorld .tw-stat{background:#0a1729;border-radius:9px;padding:10px}
+#thermalWorld .tw-stat strong{display:block;font-size:15px;color:#a7eeff}
+#thermalWorld .tw-muted{font-size:12px;color:#a7bdd2}
+#thermalWorld .tw-heatbar{height:12px;border-radius:12px;background:linear-gradient(90deg,#093397,#04bbef,#22c774,#fae330,#ff8a19,#ee2312);position:relative}
+#thermalWorld .tw-cursor{position:absolute;top:-3px;height:18px;width:3px;background:white;border-radius:4px;left:0%}
+#thermalWorld .tw-notes{display:flex;flex-wrap:wrap;gap:5px;min-height:44px;align-content:start}
+#thermalWorld .tw-notes span{font-size:12px;background:#203f61;border:1px solid #3875a2;padding:4px 7px;border-radius:7px}
+#thermalWorld.tw-full{height:100vh;overflow:auto;border-radius:0}
+#thermalWorld:fullscreen{height:100vh;overflow:auto;border:0;border-radius:0}
+#thermalWorld:fullscreen .tw-viewport{height:min(76vh,900px)}
+@media(max-width:860px){#thermalWorld .tw-layout{grid-template-columns:1fr}#thermalWorld .tw-viewport{height:360px}}
+</style>
+
+<style id="single-globe-layout">
+/* Keep the original app running behind the scenes while displaying only the globe and Start. */
+body{background:#030817!important;min-height:100vh}
+body>.skip,body>.topbar,body>svg,main>.intro,main>.workspace,main>.status-line,main>.error,main>footer,main>noscript{display:none!important}
+main.shell{max-width:none!important;width:100%;padding:0!important;margin:0!important}
+#accessibleLydia{display:none!important}
+#thermalWorld{margin:0!important;padding:15px!important;min-height:100vh;border:0!important;border-radius:0!important;display:flex;flex-direction:column;align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#122848,#030816 78%)!important}
+#thermalWorld .tw-head,#thermalWorld .tw-side,#thermalWorld .tw-actions,#thermalWorld .tw-layout>div>label,#thermalWorld .tw-layout>div>p,#thermalWorld>p{display:none!important}
+#thermalWorld .tw-layout{display:block!important;width:min(100%,1100px);order:0}
+#thermalWorld .tw-layout>div{width:100%!important}
+#thermalWorld .tw-viewport{width:100%;height:min(77vh,790px)!important;border:0!important;background:transparent!important}
+#thermalWorld #tw-camera,#thermalWorld #tw-handstate,#thermalWorld #tw-overlay{display:none!important}
+#solo-start{order:1;display:block;margin:12px auto 0;background:#bff5ff;color:#062332;border:2px solid #fff;border-radius:12px;padding:14px 40px;min-height:55px;font:700 17px system-ui;cursor:pointer;box-shadow:0 6px 24px #00bfff44}
+#solo-start:focus-visible{outline:4px solid #ffdc69;outline-offset:4px}
+#solo-start:disabled{opacity:.7;cursor:wait}
+@media(max-width:700px){#thermalWorld{padding:5px!important}#thermalWorld .tw-viewport{height:76vh!important}#solo-start{margin-top:5px}}
+</style>
+</head>
+<body>
+  <nav aria-label="Earth Jukebox navigation" style="padding:12px 16px">
+    <img src="logo.jpg" alt="Heroicos en Órbita" width="48" height="48" style="vertical-align:middle;margin-right:12px;border-radius:50%">
+    <a class="button" href="./#apps" style="display:inline-flex;align-items:center;text-decoration:none">← Back to Main Menu</a>
+  </nav>
+  <a class="skip" href="#sources">Skip to video and camera setup</a>
+  <svg aria-hidden="true" style="position:absolute;width:0;height:0;overflow:hidden" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <symbol id="i-play" viewBox="0 0 24 24"><path d="m9 5 11 7-11 7Z"/></symbol>
+      <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+      <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 16V3m-5 5 5-5 5 5M4 16v5h16v-5"/></symbol>
+      <symbol id="i-camera" viewBox="0 0 24 24"><rect x="3" y="6" width="13" height="13" rx="2"/><path d="m16 10 5-3v11l-5-3"/></symbol>
+      <symbol id="i-reset" viewBox="0 0 24 24"><path d="M4 10a8 8 0 1 1 1 9M4 4v6h6"/></symbol>
+      <symbol id="i-forward" viewBox="0 0 24 24"><path d="m4 5 8 7-8 7Zm9 0 8 7-8 7Z"/></symbol>
+      <symbol id="i-expand" viewBox="0 0 24 24"><path d="M9 3H3v6m12-6h6v6M3 15v6h6m12-6v6h-6"/></symbol>
+      <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 10 5-10 5L2 8Zm-10 9 10 5 10-5M2 16l10 5 10-5"/></symbol>
+      <symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H5v18h14V8Zm0 0v5h5m-10 5 5 3-5 3Z"/></symbol>
+      <symbol id="i-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V6a4 4 0 0 1 8 0v4m-4 5v2"/></symbol>
+      <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6m0-10v1"/></symbol>
+    </defs>
+  </svg>
+  <header class="topbar">
+    <div class="shell topbar-inner">
+      <div class="brand">
+        <svg class="brand-mark" viewBox="0 0 48 48" fill="none" aria-hidden="true"><circle cx="24" cy="24" r="15" stroke="currentColor"/><ellipse cx="24" cy="24" rx="8" ry="15" stroke="currentColor" opacity=".5"/><path d="M10 24h28M13 16h22M13 32h22" stroke="currentColor" opacity=".5"/><ellipse cx="24" cy="24" rx="24" ry="7" transform="rotate(-35 24 24)" stroke="currentColor"/><circle cx="42" cy="12" r="2.5" fill="currentColor"/></svg>
+        <div><div class="brand-name">EarthSense <span>Music</span></div><div class="eyebrow">Exploration Laboratory</div></div>
+      </div>
+      <div class="privacy"><svg class="icon" aria-hidden="true"><use href="#i-lock"/></svg><span>Local camera · microphone only for voice commands · no repeated alerts</span></div>
+    </div>
+  </header>
+  <main class="shell" id="main">
+<section id="accessibleLydia" aria-labelledby="ajTitle" class="aj-panel" tabindex="-1">
+ <style>
+ #accessibleLydia{background:#091b30;border:2px solid #6ce6ff;border-radius:17px;padding:20px;margin:20px 0 26px;color:#f2f9ff;box-shadow:0 0 20px #128fc422}
+ #accessibleLydia h2{font-size:23px;line-height:1.3;margin:0 0 8px;color:#c7f7ff}
+ #accessibleLydia p{font-size:14px;color:#e1efff;margin:7px 0}
+ #accessibleLydia .aj-actions{display:flex;flex-wrap:wrap;gap:10px;margin:16px 0}
+ #accessibleLydia button{background:#123e57;border:2px solid #83e9fa;border-radius:10px;color:white;font-weight:700;min-height:52px;padding:11px 15px;cursor:pointer;font-size:14px}
+ #accessibleLydia button:focus-visible{outline:4px solid #ffd166;outline-offset:3px}
+ #accessibleLydia #aj-start{background:#d6faff;color:#062435;border-color:#fff}
+ #accessibleLydia .aj-state{padding:11px 14px;background:#051321;border-left:4px solid #71e3f4;border-radius:7px;font-size:14px}
+ #accessibleLydia .aj-manual{font-size:13px;color:#bad6ef;line-height:1.6}
+ #accessibleLydia .aj-manual strong{color:#fff}
+ @media(max-width:550px){#accessibleLydia{padding:14px}#accessibleLydia button{width:100%}}
+ </style>
+ <h2 id="ajTitle">LYDIA · Accessible Voice-Guided Exploration</h2>
+ <p id="aj-intro">LYDIA can guide you by voice, help you enable the camera, and describe the environments as you explore the planet with your hand.</p>
+ <div class="aj-actions" role="group" aria-label="Main LYDIA controls">
+  <button id="aj-start" type="button">▶ Start LYDIA with Voice and Camera</button>
+  <button id="aj-listen" type="button">🎙️ Listen for a Voice Command</button>
+  <button id="aj-guide" type="button">🔊 Hear Instructions</button>
+  <button id="aj-silence" type="button">■ Stop Voice and Sounds</button>
+ </div>
+ <div class="aj-state" id="aj-status" role="status" aria-live="polite">LYDIA is ready. Select Start LYDIA with Voice and Camera, or use Tab and Enter.</div>
+ <p class="aj-manual">Voice commands: <strong>“Lydia, turn on the camera”</strong>, <strong>“Lydia, help”</strong>, <strong>“Lydia, status”</strong>, <strong>“Lydia, turn on the sound”</strong>, <strong>“Lydia, stop the sound”</strong>, <strong>“Lydia, volume up”</strong>, <strong>“Lydia, volume down”</strong>, <strong>“Lydia, rotate the world”</strong>, <strong>“Lydia, stop rotation”</strong>, <strong>“Lydia, full screen”</strong>, <strong>“Lydia, enable hand tracking”</strong>, <strong>“Lydia, play video”</strong>.</p>
+ <p class="aj-manual">The globe rotates slowly on its own. Point with your index finger to hear the ocean, rainforest, desert, or fire. Heat is represented by sound; no physical heat is produced.</p>
+</section>
+    <section class="intro" aria-labelledby="pageTitle">
+      <div><div class="phase">Phase 02 · Hand Tracking</div><h1 id="pageTitle">Explore with your index finger.</h1><p>Extend your index finger and move your hand to guide the pointer precisely.</p></div>
+      <div class="start-wrap">
+        <button id="startButton" class="button primary" type="button" aria-describedby="startHint" disabled><svg class="icon" aria-hidden="true"><use id="startIcon" href="#i-play"/></svg><span id="startLabel">Start Experience</span></button>
+        <small id="startHint">Load a video and enable the camera to begin.</small>
+      </div>
+    </section>
+
+    <div class="workspace">
+      <div class="main-column">
+        <section class="panel viewer" id="viewer" aria-labelledby="viewerTitle">
+          <div class="panel-head"><div class="panel-title"><svg class="icon" aria-hidden="true"><use href="#i-layers"/></svg><h2 id="viewerTitle">Exploration Window</h2></div><span class="badge" id="sessionBadge" data-active="false">Getting Ready</span></div>
+          <div class="stage" id="stage" role="img" aria-label="Combined view: camera beneath the video. No sources are active yet.">
+            <canvas id="cameraLayer" width="960" height="540" aria-hidden="true"></canvas>
+            <canvas id="videoLayer" width="960" height="540" aria-hidden="true"></canvas>
+            <canvas id="handLayer" width="960" height="540" aria-hidden="true"></canvas>
+            <span class="stage-caption" aria-hidden="true">COMBINED VIEW</span>
+            <div id="stageMlBadge" class="stage-ml-badge" hidden aria-live="polite"><span class="ml-dot" id="stageMlDot"></span><span id="stageMlText">Continuous ML Tonality</span></div>
+            <div class="empty-state" id="emptyState" aria-hidden="true">
+              <svg class="orbit" viewBox="0 0 120 120" fill="none"><circle cx="60" cy="60" r="39" stroke="currentColor" stroke-width=".8"/><ellipse cx="60" cy="60" rx="20" ry="39" stroke="currentColor" stroke-width=".7" opacity=".55"/><path d="M21 60h78M28 39h64M28 81h64" stroke="currentColor" stroke-width=".7" opacity=".55"/><ellipse cx="60" cy="60" rx="59" ry="17" transform="rotate(-30 60 60)" stroke="currentColor" stroke-width=".8"/><circle cx="108" cy="31" r="3" fill="currentColor"/><circle cx="60" cy="60" r="51" stroke="currentColor" stroke-dasharray="2 9" opacity=".3"/></svg>
+              <h3>The first step is to observe.</h3><p>Load a video and enable your camera.<br>Both images will appear here.</p>
+            </div>
+          </div>
+          <div class="tracking-readout"><p id="handStatus" role="status" aria-atomic="true">Tracking Disabled</p><span id="pointerPosition">Pointer position unavailable</span></div>
+          <div class="transport" role="group" aria-label="Video and viewing controls">
+            <div class="transport-row">
+              <div class="transport-buttons">
+                <button class="button play" id="playButton" type="button" disabled><svg class="icon" aria-hidden="true"><use id="playIcon" href="#i-play"/></svg><span id="playLabel">Play</span></button>
+                <button class="button quiet" id="restartButton" type="button" disabled><svg class="icon" aria-hidden="true"><use href="#i-reset"/></svg><span class="restart-text">Restart</span></button>
+                <button class="button quiet" id="forwardButton" type="button" aria-label="Avanzar 10 segundos" disabled><svg class="icon" aria-hidden="true"><use href="#i-forward"/></svg><span aria-hidden="true">10 s</span></button>
+              </div>
+              <button class="button quiet" id="fullscreenButton" type="button"><svg class="icon" aria-hidden="true"><use href="#i-expand"/></svg><span id="fullscreenLabel" class="fullscreen-text">Full Screen</span></button>
+            </div>
+            <div class="timeline">
+              <label class="sr-only" for="seek">Video Position</label><input id="seek" type="range" min="0" max="100" step="0.1" value="0" aria-valuetext="No Video" disabled>
+              <div class="timecode" aria-hidden="true"><span id="currentTime">00:00</span><span>/</span><span id="duration">00:00</span></div>
+            </div>
+            <div class="fullscreen-extra" id="fullscreenExtra" hidden><label for="fullscreenTransparency"><span>Video Transparency · <span id="fullscreenTransparencyValue">40 %</span></span><input id="fullscreenTransparency" type="range" min="0" max="100" value="40" step="1"></label></div>
+            <p class="fullscreen-status" id="fullscreenStatus" role="status" hidden></p>
+          </div>
+        </section>
+        <section class="panel mix" aria-labelledby="mixTitle">
+          <div class="mix-title"><label id="mixTitle" for="transparency">Video Transparency</label><output id="transparencyValue" for="transparency" aria-live="off">40 %</output></div>
+          <p class="hint" id="transparencyHint">Increase transparency to see your hand and the camera more clearly.</p>
+          <input id="transparency" type="range" min="0" max="100" step="1" value="40" aria-describedby="transparencyHint">
+          <div class="range-ends" aria-hidden="true"><span>0% · Opaque Video</span><span>100% · Invisible Video</span></div>
+        </section>
+        <section class="panel sonic" id="sonic" aria-labelledby="sonicTitle">
+          <div class="panel-head">
+            <div class="panel-title"><svg class="icon" aria-hidden="true"><use href="#i-layers"/></svg><h2 id="sonicTitle">Video Frames and Sonification</h2></div>
+            <span class="badge" id="sonicBadge" data-active="false">No Video</span>
+          </div>
+          <div class="sonic-body">
+            <p class="sonic-status" id="sonicStatus" role="status" aria-live="polite">Load a video: its frames will be extracted and converted into music automatically.</p>
+            <div class="sonic-progress" id="sonicProgressWrap" hidden><div id="sonicProgress"></div></div>
+            <div class="sonic-main">
+              <figure class="sonic-preview">
+                <span id="sonicPreviewEmpty">No Frames Yet</span>
+                <img id="sonicPreview" alt="Current video frame" hidden>
+                <figcaption id="sonicCaption" hidden></figcaption>
+              </figure>
+              <div>
+                <ul class="sonic-map" aria-label="How a video frame becomes sound">
+                  <li><b>Color</b><i class="swatch" id="sonicSwatch"></i><span id="mapColor">—</span></li>
+                  <li><b>Texture</b><span id="mapTexture">—</span></li>
+                  <li><b>Brightness</b><span id="mapLight">—</span></li>
+                  <li><b>Active Note</b><span id="mapNote">—</span></li>
+                </ul>
+                <canvas id="sonicScope" height="56" aria-hidden="true"></canvas>
+              </div>
+            </div>
+            <div class="sonic-reel" id="sonicReel" role="list" aria-label="Video frames extracted from the video"></div>
+            <div class="sonic-actions">
+              <button class="button primary" id="sonicPlay" type="button" disabled>Play Sonification</button>
+              <button class="button quiet" id="sonicPrev" type="button" disabled aria-label="Previous Frame">◀</button>
+              <button class="button quiet" id="sonicNext" type="button" disabled aria-label="Next Frame">▶</button>
+              <button class="button quiet" id="sonicReprocess" type="button" disabled>Reprocess</button>
+              <button class="button quiet" id="sonicReport" type="button" disabled>Download Report</button>
+              <label class="check-row"><input id="sonicSync" type="checkbox" checked>Play Sound Alongside Video</label>
+              <label class="check-row"><input id="sonicContinuousToggle" type="checkbox" checked> <b>Continuous ML Sound When Experience Starts</b></label>
+            </div>
+            <div class="ml-clusters-wrap" id="mlClustersWrap"><span class="ml-clusters-title">Learned Tonal Clusters (Machine Learning):</span><div id="mlClusterPills" class="ml-pills"><span style="font-size:11px;color:var(--muted)">Load a video to train the tonal-clustering model.</span></div></div>
+            <div class="sonic-controls">
+              <label class="field"><span>Number of Frames <output id="sonicCountVal">8</output></span><input id="sonicCount" type="range" min="4" max="24" step="1" value="8"></label>
+              <label class="field"><span>Tempo <output id="sonicBpmVal">90 BPM</output></span><input id="sonicBpm" type="range" min="40" max="180" step="1" value="90"></label>
+              <label class="field"><span>Volume <output id="sonicVolVal">-6 dB</output></span><input id="sonicVol" type="range" min="-30" max="0" step="1" value="-6"></label>
+              <label class="field"><span>Progressive Continuous Volume <output id="sonicContinuousVolVal">75 %</output></span><input id="sonicContinuousVol" type="range" min="0" max="100" step="1" value="75"></label>
+              <label class="field"><span>Musical Scale</span>
+                <select id="sonicScale">
+                  <option value="auto">Automatic (based on color)</option>
+                  <option value="pentatonic">Pentatonic</option>
+                  <option value="major">Major</option>
+                  <option value="minor">Minor</option>
+                  <option value="lydian">Lydian</option>
+                  <option value="dorian">Dorian</option>
+                </select>
+              </label>
+            </div>
+            <p class="source-note">Each frame is analyzed for average color, brightness, and edges, then translated into music: brightness controls pitch, color selects the scale, and texture determines whether notes play as a fast arpeggio or a sustained chord. All processing happens on your device.</p>
+          </div>
+        </section>
+      </div>
+
+      <aside class="side-column" id="sources" aria-label="Source Setup" tabindex="-1">
+        <section class="panel source-card" aria-labelledby="videoTitle">
+          <div class="source-title"><span class="section-number" aria-hidden="true">01</span><h2 id="videoTitle">Your Video</h2></div>
+          <input id="fileInput" type="file" accept="video/*,.mp4,.webm,.m4v,.mov,.ogv,.ogg,.mkv" hidden>
+          <button class="button wide" id="loadButton" type="button"><svg class="icon" aria-hidden="true"><use href="#i-upload"/></svg>Load Video</button>
+          <p class="source-note">MP4, WebM, and other formats supported by your browser.</p>
+          <div class="file-card"><svg class="icon" aria-hidden="true"><use href="#i-file"/></svg><div class="file-details"><p id="fileName">No Video Selected</p><p id="fileMeta">Choose a file from your computer.</p></div></div>
+        </section>
+        <section class="panel source-card" aria-labelledby="cameraTitle">
+          <div class="source-title"><span class="section-number" aria-hidden="true">02</span><h2 id="cameraTitle">Your Camera</h2></div>
+          <div class="preview">
+            <video id="cameraPreview" muted playsinline class="mirrored" aria-label="Camera Preview" disablepictureinpicture></video>
+            <div class="preview-empty" id="cameraPlaceholder" aria-hidden="true"><svg class="icon"><use href="#i-camera"/></svg><span id="cameraPlaceholderText">Camera Off</span></div>
+            <span class="preview-label" id="liveLabel" hidden aria-hidden="true">LIVE</span>
+          </div>
+          <button class="button wide" id="cameraButton" type="button" aria-describedby="cameraInfo"><svg class="icon" aria-hidden="true"><use href="#i-camera"/></svg><span id="cameraButtonLabel">Enable Webcam</span></button>
+          <label class="check-row"><input id="mirror" type="checkbox" checked>Mirror Camera View</label>
+          <p class="camera-info" id="cameraInfo">Only camera permission will be requested here. Audio is generated locally.</p>
+        </section>
+        <section class="panel source-card" aria-labelledby="trackingTitle">
+          <div class="source-title"><span class="section-number" aria-hidden="true">03</span><h2 id="trackingTitle">Index Finger Tracking</h2></div>
+          <p class="hint" id="trackingHelp">Starts when the camera is enabled. Show one hand with your index finger extended and the other fingers curled.</p>
+          <button class="button wide" id="trackingButton" type="button" aria-describedby="trackingHelp" disabled>Enable Tracking</button>
+          <p class="model-state" id="modelState" role="status">Model Not Loaded</p>
+          <p class="source-note" id="modelDiagnostics" role="status" aria-live="polite">Select Enable Tracking to check the library, WebAssembly, and the model.</p>
+          <button type="button" id="diagnoseButton" class="button quiet connection-test">Check MediaPipe Access</button>
+          <details class="model-help">
+            <summary>How can I use MediaPipe without .bat files?</summary>
+            <p>You only need this HTML file and an internet connection to load MediaPipe. In VS Code, open the HTML file with <strong>Live Server</strong> (right-click → Open with Live Server); the address will be http://127.0.0.1:5500 or http://localhost:5500.</p>
+            <p>No installers are needed. MediaPipe (JavaScript and WASM) is loaded from its package CDN and the Google model. The camera requires browser permission.</p>
+            <p>You can also try opening it by double-clicking, but <strong>Live Server is the most reliable option</strong> because of browser security restrictions on local files.</p>
+            <p>If only the model download fails, download <code>hand_landmarker.task</code> and select it here.</p>
+            <label class="button quiet local-model-button" for="localModelInput">Select .task Model (optional)</label>
+            <input id="localModelInput" type="file" accept=".task,application/octet-stream" hidden>
+            <p class="source-note" id="localModelStatus">Official Model Online.</p>
+            <p><a href="https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task" target="_blank" rel="noopener noreferrer">Download Official Model, Only if Needed</a></p>
+          </details>
+          <div class="tracking-options">
+            <label class="check-row"><input id="showSkeleton" type="checkbox">Show the 21 Points and Hand Skeleton</label>
+            <label class="check-row"><input id="soundEnabled" type="checkbox">Soft Sound When Hand Is Detected</label>
+            <p class="source-note" id="soundInfo">The alert activetes when camera or tracking starts.</p>
+            <label class="check-row test-option"><input id="mouseMode" type="checkbox" aria-describedby="mouseHelp">Mouse Test Mode</label>
+            <p class="source-note" id="mouseHelp">Test the pointer over the combined view without a camera. This pauses hand recognition.</p>
+          </div>
+          <p class="source-note">MediaPipe needs an internet connection to load JavaScript, WebAssembly, and the model. Hand recognition then runs on this device. No .bat files are needed.</p>
+        </section>
+        <section class="guide" aria-labelledby="guideTitle"><h2 id="guideTitle">Explore Step by Step</h2><ol><li>Load a video and enable your camera.</li><li>Wait for the model to be ready.</li><li>Point with your index finger and follow the cursor.</li><li>Listen to your video frames transformed into music.</li></ol></section>
+      </aside>
+    </div>
+    <div class="status-line"><svg class="icon" aria-hidden="true"><use href="#i-info"/></svg><p id="status" role="status" aria-live="polite" aria-atomic="true">Welcome. Start with the Load Video button. Use Tab to move through the controls.</p></div>
+    <p id="error" class="error" role="alert" aria-atomic="true"></p>
+
+<section id="thermalWorld" class="shell" aria-label="Earth Heat and Music Explorer">
+<button id="solo-start" type="button" aria-label="Start EarthSense. Have a helper verify the camera and audio before exploring.">Start</button>
+  <div class="tw-head"><div><p class="eyebrow">EARTHSENSE MUSIC · INTEGRATED MODULE</p><h2>🌎 Planet of Soundscapes</h2><p class="tw-muted">The globe rotates slowly on its own. Point with your index finger to listen: blue = ocean, green = rainforest, orange = desert, red = fire.</p></div><button id="tw-full" type="button">⛶ Full Screen</button></div>
+  <div class="tw-layout"><div>
+    <div class="tw-viewport" id="tw-viewport"><canvas id="tw-globe" aria-label="Slowly rotating planet: index finger explores sounds using the camera"></canvas><div class="tw-over" id="tw-overlay">1. Ask a helper to check camera and sound · 2. Point with your index finger to explore</div><video id="tw-camera" autoplay muted playsinline aria-label="Camera view for controlling the planet"></video><div id="tw-handstate" role="status" aria-live="off">Camera Off</div></div>
+    <div class="tw-actions"><button id="tw-start" type="button" class="tw-primary">📷 Start Camera and Sound</button><button id="tw-audio" type="button" hidden>▶ Enable Sound Experience</button><button id="tw-pause" type="button">■ Mute</button><button id="tw-spin" type="button">⟳ Rotation: active</button><button id="tw-zoomin" type="button">＋ Zoom In</button><button id="tw-zoomout" type="button">－ Zoom Out</button></div>
+    <label class="tw-muted" for="tw-volume" style="display:flex;align-items:center;gap:12px;margin:12px 0 0">Nature Sound Volume <input id="tw-volume" type="range" min="0" max="100" value="86" style="flex:1;accent-color:#66dbfb"/><output id="tw-volume-value">86 %</output></label>
+    <p class="tw-muted" style="margin:9px 0 0">The globe rotates slowly and automatically. Point with your index finger to explore sounds. An assistant should first verify the camera and speakers are working. You do not need to load a video; the microphone is optional for speaking to LYDIA. Ocean waves, rainforest, wind, and fire change continuously and fade when your hand leaves the frame.</p>
+  </div><aside class="tw-side">
+    <div class="tw-stat"><span class="tw-muted">Explored Area</span><strong id="tw-place">Planet Earth</strong><div class="tw-muted" id="tw-coords">Waiting for Interaction</div></div>
+    <div class="tw-stat"><span class="tw-muted">Ambient Color and Intensity</span><strong id="tw-temp">No Reading</strong><div class="tw-heatbar" style="margin-top:13px"><i class="tw-cursor" id="tw-heatcursor"></i></div><p class="tw-muted" id="tw-heatlabel" style="margin:10px 0 0">Blue = ocean · Green = rainforest · Orange = desert · Red = fire</p></div>
+    <div class="tw-stat"><span class="tw-muted">🌊 Blue: ocean · 🌿 Green: rainforest · 🏜️ Orange: sand · 🔥 Red: fire</span></div><div class="tw-stat"><span class="tw-muted">Active Sounds</span><strong id="tw-soundtitle">Waiting for Soundscape</strong><p class="tw-muted" id="tw-instrument">Point at a colored region to hear water, rainforest animals, desert winds, or fire.</p></div>
+    <div><strong style="font-size:13px;color:#b7ebfb">♫ Notes Playing</strong><div class="tw-notes" id="tw-notes"><span>—</span></div><p class="tw-muted">Color, brightness, and position select chromatic notes across multiple octaves. The music is generated automatically.</p></div>
+  </aside></div>
+  <p class="tw-muted" style="margin:10px 0 0">Artistic map inspired by the reference image. Calls resembling seagulls, marine animals, monkeys, and big cats are synthesized approximations, not field recordings or real climate data. No physical heat is produced.</p>
+</section>
+    <footer><span>PHASE 2 · Single HTML file; no installation required. Includes video frame extraction and sonification.</span><span>EARTHSENSE MUSIC / EXPLORE AT YOUR OWN PACE</span></footer>
+    <noscript><p class="error">Enable JavaScript in your browser to load videos and use the camera.</p></noscript>
+  </main>
+
+  <!-- Fuentes sin filtros, espejo ni transparencia. Nunca se suben a un servidor. -->
+  <video id="videoSource" preload="auto" playsinline hidden></video>
+  <video id="cameraSource" muted playsinline hidden></video>
+  <!-- Reservado para la fase 3: se dibujará desde videoSource, nunca desde las capas visibles. -->
+  <canvas id="analysisCanvas" width="1" height="1" hidden aria-hidden="true"></canvas>
+
+  <script>
+    'use strict';
+
+    const $ = (id) => document.getElementById(id);
+    const video = $('videoSource');
+    const camera = $('cameraSource');
+    const preview = $('cameraPreview');
+    const videoContext = $('videoLayer').getContext('2d');
+    const cameraContext = $('cameraLayer').getContext('2d');
+    const handContext = $('handLayer').getContext('2d');
+    const state = {
+      videoURL: null, file: null, videoReady: false, videoVersion: 0,
+      stream: null, cameraReady: false, cameraPending: false, cameraRequest: 0,
+      experience: false, playPending: false, playRequest: 0,
+      mirrored: true, transparency: 40, frame: null, lastFrame: 0,
+      dirty: true, lastVideoTime: -1, stageWidth: 960, stageHeight: 540
+    };
+    const tracking = {
+      mode: 'hand', enabled: false, model: 'idle', worker: null, workerURL: null, loadTimer: null,
+      epoch: 0, sequence: 0, pending: null, lastCameraTime: -1, lastSent: -Infinity,
+      interval: 30, lastResult: 0, lastHandAt: -Infinity, lastPointingAt: -Infinity, handFrames: 0, poseFrames: 0,
+      cueOnRecognition: false, landmarks: null, smoothTip: null, mousePoint: null,
+      pointing: false, lastSmoothAt: 0, message: '', audio: null, tone: null, lastCue: -Infinity
+    };
+    window.state = state;
+    window.tracking = tracking;
+
+    // 1. Accesibilidad básica. La narración hablada corresponde a la fase 5.
+    function announce(message) {
+      $('status').textContent = message;
+      $('fullscreenStatus').textContent = message;
+    }
+    function showError(message) {
+      $('error').textContent = message;
+      $('fullscreenStatus').textContent = message;
+    }
+    function clearError() { $('error').textContent = ''; }
+    function formatTime(seconds) {
+      if (!Number.isFinite(seconds)) return '--:--';
+      const total = Math.max(0, Math.floor(seconds));
+      const hours = Math.floor(total / 3600);
+      const minutes = Math.floor(total / 60) % 60;
+      return (hours ? hours + ':' : '') + String(minutes).padStart(2, '0') + ':' + String(total % 60).padStart(2, '0');
+    }
+    function canSeek() { return state.videoReady && Number.isFinite(video.duration) && video.duration > 0; }
+    function updateTimeline() {
+      const time = video.currentTime || 0;
+      $('currentTime').textContent = formatTime(time);
+      $('duration').textContent = state.file ? formatTime(video.duration) : '00:00';
+      $('seek').max = canSeek() ? video.duration : 100;
+      $('seek').value = time;
+      $('seek').setAttribute('aria-valuetext', state.videoReady ? formatTime(time) + ' de ' + formatTime(video.duration) : 'No Video Ready');
+      $('seek').disabled = !canSeek();
+      $('forwardButton').disabled = !canSeek();
+    }
+    function updateUI() {
+      const playing = state.videoReady && !video.paused && !video.ended;
+      $('playButton').disabled = !state.videoReady || state.playPending;
+      $('restartButton').disabled = !state.videoReady;
+      $('playLabel').textContent = playing ? 'Pausar' : 'Play';
+      $('playIcon').setAttribute('href', playing ? '#i-pause' : '#i-play');
+      const inputReady = state.cameraReady || tracking.mode === 'mouse';
+      $('startButton').disabled = !state.videoReady || !inputReady || state.playPending;
+      $('startLabel').textContent = state.experience ? 'Pausar experiencia' : 'Start Experience';
+      $('startIcon').setAttribute('href', state.experience ? '#i-pause' : '#i-play');
+      $('startHint').textContent = !state.videoReady && !inputReady ? 'Load a video and enable the camera to begin.'
+        : !state.videoReady ? 'Load a video to begin.' : !inputReady ? 'Enable the camera to begin.'
+        : tracking.mode === 'mouse' ? 'Mouse test · no hand recognition.'
+        : state.experience ? 'Point with your index finger to move the cursor.' : 'All set. Start whenever you are ready.';
+      $('sessionBadge').textContent = state.experience ? 'Experiencia active' : playing ? 'Reproduciendo' : state.videoReady ? 'Video Ready' : state.cameraReady ? 'Camera Active' : 'Getting Ready';
+      $('sessionBadge').dataset.active = String(state.experience || playing || state.cameraReady);
+      $('cameraButtonLabel').textContent = state.cameraPending ? 'Cancel Activation' : state.stream ? 'Disable Camera' : 'Enable Webcam';
+      $('cameraButton').setAttribute('aria-busy', String(state.cameraPending));
+      $('cameraPlaceholder').hidden = state.cameraReady;
+      $('cameraPlaceholderText').textContent = state.cameraPending ? 'Waiting for camera permission…' : 'Camera Off';
+      $('liveLabel').hidden = !state.cameraReady;
+      $('emptyState').hidden = state.videoReady || state.cameraReady;
+      $('stage').setAttribute('aria-label', 'Combined view. Video: ' + (state.videoReady ? (playing ? 'playing' : 'en pausa') : 'not loaded')
+        + '. Camera: ' + (state.cameraReady ? 'live' : 'off') + '. Video Transparency: ' + state.transparency + ' percent.');
+      updateTimeline();
+      updateTrackingControls();
+      window.dispatchEvent(new CustomEvent('app:ui-update', { detail: { experience: state.experience, playing } }));
+    }
+
+    // 2. Superposición y coordenadas. Un único espacio en píxeles CSS del escenario.
+    // Ambas fuentes usan ajuste "contain": no hay recortes ni deformaciones.
+    // El rectángulo de cada imagen excluye sus bandas vacías y se recalcula al redimensionar.
+    function fitRect(sourceWidth, sourceHeight) {
+      if (!sourceWidth || !sourceHeight) return null;
+      const scale = Math.min(state.stageWidth / sourceWidth, state.stageHeight / sourceHeight);
+      const width = sourceWidth * scale;
+      const height = sourceHeight * scale;
+      return { x: (state.stageWidth - width) / 2, y: (state.stageHeight - height) / 2, width, height };
+    }
+    const coordinates = Object.freeze({
+      // Entrada futura: landmark de MediaPipe sobre cameraSource SIN espejo, valores 0..1.
+      cameraToStage(x, y) {
+        const rect = fitRect(camera.videoWidth, camera.videoHeight);
+        if (!rect || !Number.isFinite(x) || !Number.isFinite(y)) return null;
+        const cx = Math.max(0, Math.min(1, x));
+        const cy = Math.max(0, Math.min(1, y));
+        return { x: rect.x + (state.mirrored ? 1 - cx : cx) * rect.width, y: rect.y + cy * rect.height };
+      },
+      // Salida futura: píxel del video original. null significa estar fuera de su imagen.
+      stageToVideo(x, y) {
+        const rect = fitRect(video.videoWidth, video.videoHeight);
+        if (!rect || !Number.isFinite(x) || !Number.isFinite(y) || x < rect.x || y < rect.y || x >= rect.x + rect.width || y >= rect.y + rect.height) return null;
+        return { x: Math.floor((x - rect.x) / rect.width * video.videoWidth), y: Math.floor((y - rect.y) / rect.height * video.videoHeight) };
+      },
+      clientToStage(clientX, clientY) {
+        const rect = $('stage').getBoundingClientRect();
+        return { x: (clientX - rect.left) * state.stageWidth / rect.width, y: (clientY - rect.top) * state.stageHeight / rect.height };
+      }
+    });
+    function resizeLayers() {
+      const rect = $('stage').getBoundingClientRect();
+      if (!rect.width || !rect.height) return;
+      state.stageWidth = rect.width;
+      state.stageHeight = rect.height;
+      // Limita el coste de presentación en pantallas densas. El análisis futuro conservará la resolución original.
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.5);
+      for (const layer of [$('cameraLayer'), $('videoLayer'), $('handLayer')]) {
+        layer.width = Math.round(rect.width * pixelRatio);
+        layer.height = Math.round(rect.height * pixelRatio);
+        layer.getContext('2d').setTransform(layer.width / rect.width, 0, 0, layer.height / rect.height, 0, 0);
+      }
+      requestRender();
+    }
+    function drawSource(context, source, ready, mirrored = false) {
+      context.clearRect(0, 0, state.stageWidth, state.stageHeight);
+      if (!ready || source.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+      const rect = fitRect(source.videoWidth, source.videoHeight);
+      if (!rect) return;
+      context.save();
+      if (mirrored) { context.translate(state.stageWidth, 0); context.scale(-1, 1); }
+      context.drawImage(source, rect.x, rect.y, rect.width, rect.height);
+      context.restore();
+    }
+    function requestRender() {
+      state.dirty = true;
+      if (state.frame === null && !document.hidden) state.frame = requestAnimationFrame(render);
+    }
+    function render(timestamp) {
+      state.frame = null;
+      if (document.hidden) return;
+      // Un único bucle, como máximo 30 dibujos/s; en pausa no repinta el video sin cambios.
+      if (state.dirty || timestamp - state.lastFrame >= 1000 / 30) {
+        drawSource(cameraContext, camera, state.cameraReady, state.mirrored);
+        if (state.dirty || video.currentTime !== state.lastVideoTime) {
+          drawSource(videoContext, video, state.videoReady);
+          state.lastVideoTime = video.currentTime;
+        }
+        state.dirty = false;
+        state.lastFrame = timestamp;
+        drawTracking();
+      }
+      pumpTracking(timestamp);
+      if (state.cameraReady || (state.videoReady && !video.paused && !video.ended)) state.frame = requestAnimationFrame(render);
+    }
+    function setTransparency(value) {
+      state.transparency = Math.min(100, Math.max(0, Number(value)));
+      // 0 % transparencia = opaco; 100 % = invisible. Solo cambia la presentación.
+      $('videoLayer').style.opacity = String(1 - state.transparency / 100);
+      for (const id of ['transparency', 'fullscreenTransparency']) {
+        $(id).value = state.transparency;
+        $(id).setAttribute('aria-valuetext', state.transparency + ' percent transparency');
+      }
+      $('transparencyValue').textContent = state.transparency + ' %';
+      $('fullscreenTransparencyValue').textContent = state.transparency + ' %';
+      updateUI();
+    }
+
+    // 3. Gestión del video local. Una sola fuente de reproducción para evitar desfases.
+    function pauseVideo(message) {
+      state.playRequest++;
+      state.playPending = false;
+      state.experience = false;
+      video.pause();
+      updateUI();
+      if (message) announce(message);
+    }
+    function releaseVideo() {
+      pauseVideo();
+      state.videoVersion++;
+      state.videoReady = false;
+      state.file = null;
+      video.removeAttribute('src');
+      video.load();
+      if (state.videoURL) URL.revokeObjectURL(state.videoURL);
+      state.videoURL = null;
+      state.lastVideoTime = -1;
+      requestRender();
+    }
+    function loadFile(file) {
+      if (!file) return;
+      clearError();
+      if (!file.size) { showError('This file is empty. Choose a video that contains images.'); return; }
+      if (!file.type.startsWith('video/') && !/\.(mp4|webm|m4v|mov|ogv|ogg|mkv|avi|mpeg|mpg|3gp|3g2|ts)$/i.test(file.name)) {
+        showError('This file does not appear to be a video. Choose a supported MP4, WebM, or other video file.');
+        return;
+      }
+      releaseVideo();
+      state.file = file;
+      state.videoURL = URL.createObjectURL(file);
+      video.src = state.videoURL;
+      $('fileName').textContent = file.name;
+      $('fileMeta').textContent = 'Reading video…';
+      announce('Loading ' + file.name + '. The file stays on your device.');
+      updateUI();
+      video.load();
+    }
+    function updateFileMetadata() {
+      if (!state.file || !video.videoWidth) return;
+      const size = new Intl.NumberFormat('es', { maximumFractionDigits: 1 }).format(state.file.size / 1048576);
+      $('fileMeta').textContent = video.videoWidth + ' × ' + video.videoHeight + ' · ' + formatTime(video.duration) + ' · ' + size + ' MB';
+      updateTimeline();
+      requestRender();
+    }
+    async function playVideo(asExperience = false) {
+      if (!state.videoReady || state.playPending || (asExperience && !state.cameraReady && tracking.mode !== 'mouse')) return;
+      clearError();
+      const version = state.videoVersion;
+      const request = ++state.playRequest;
+      state.playPending = true;
+      updateUI();
+      try {
+        if (video.ended) video.currentTime = 0;
+        await video.play();
+        if (request !== state.playRequest || version !== state.videoVersion) return;
+        state.experience = asExperience && (state.cameraReady || tracking.mode === 'mouse');
+        announce(state.experience ? (tracking.mode === 'mouse' ? 'Test started. Move the mouse over the combined view.' : 'Experience started. Extend your index finger to move the cursor.') : 'Video playing.');
+        requestRender();
+      } catch (error) {
+        if (request !== state.playRequest || version !== state.videoVersion) return;
+        state.experience = false;
+        showError(error.name === 'NotAllowedError' ? 'The browser blocked playback. Select Play to try again.' : 'The video could not play. Try another file supported by your browser.');
+      } finally {
+        if (request === state.playRequest) { state.playPending = false; updateUI(); }
+      }
+    }
+    function seekTo(seconds) {
+      if (!state.videoReady) return;
+      video.currentTime = Math.max(0, canSeek() ? Math.min(seconds, video.duration) : 0);
+      updateTimeline();
+      requestRender();
+    }
+    video.addEventListener('loadedmetadata', updateFileMetadata);
+    video.addEventListener('durationchange', updateFileMetadata);
+    video.addEventListener('loadeddata', () => {
+      if (!state.file) return;
+      state.videoReady = true;
+      updateFileMetadata();
+      updateUI();
+      requestRender();
+      announce('Video loaded: ' + state.file.name + '. ' + (state.cameraReady ? 'You can now start the experience.' : 'You can play it or enable the camera to start the experience.'));
+    });
+    video.addEventListener('play', () => { updateUI(); requestRender(); });
+    video.addEventListener('pause', () => { state.experience = false; updateUI(); requestRender(); });
+    video.addEventListener('timeupdate', updateTimeline);
+    video.addEventListener('seeked', requestRender);
+    video.addEventListener('ended', () => {
+      state.experience = false;
+      updateUI();
+      requestRender();
+      announce('The video ended. You can restart it. The camera remains on until you turn it off.');
+    });
+    video.addEventListener('error', () => {
+      if (!state.file || !video.error) return;
+      const name = state.file.name;
+      releaseVideo();
+      $('fileName').textContent = name;
+      $('fileMeta').textContent = 'This file could not be loaded.';
+      updateUI();
+      showError('The video could not be read. It may be damaged or use an unsupported codec. Try another MP4 or WebM.');
+    });
+
+    // 4. Gestión de la cámara y micrófono. Una sola solicitud unificada vigente.
+    let persistentMicTrack = null;
+    let persistentAudioStream = null;
+
+    const cameraErrors = {
+      NotAllowedError: 'Camera or microphone permission was denied. Check your browser site permissions and try again.',
+      NotFoundError: 'No camera or microphone was found. Connect the device and try again.',
+      NotReadableError: 'The device could not be opened. Close other apps using it and try again.',
+      OverconstrainedError: 'The device does not support the requested settings.',
+      SecurityError: 'The browser blocked the device. Open the page from localhost or HTTPS and check permissions.',
+      AbortError: 'Device startup was interrupted. Try enabling it again.'
+    };
+
+    function stopCamera(notify = true) {
+      if (tracking.mode === 'hand') stopTracking(false);
+      state.cameraRequest++; // Una autorización tardía se descartará y sus pistas se cerrarán.
+      state.cameraPending = false;
+      state.cameraReady = false;
+      if (state.experience) pauseVideo();
+      if (state.stream) {
+        // Detener únicamente las pistas de video para apagar la cámara.
+        // La pista de micrófono se mantiene viva en segundo plano para que el navegador
+        // no vuelva a pedir permiso en cada ciclo de escucha de voz.
+        state.stream.getVideoTracks().forEach((track) => track.stop());
+      }
+      state.stream = null;
+      camera.pause();
+      preview.pause();
+      camera.srcObject = null;
+      preview.srcObject = null;
+      $('cameraInfo').textContent = persistentMicTrack ? 'Camera Off · Microphone On' : 'Camera Off.';
+      updateUI();
+      requestRender();
+      if (notify) announce('Camera Off. You can continue using the video.');
+    }
+
+    async function startCamera() {
+      clearError();
+      if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+        showError('The camera requires a compatible browser and a secure context. Open this file from localhost with Live Server.');
+        return;
+      }
+      if (state.cameraPending || state.stream) return;
+      const request = ++state.cameraRequest;
+      state.cameraPending = true;
+      updateUI();
+      announce('Allow the camera once to explore with your finger.');
+      try {
+        let stream = null;
+        // La experiencia térmica solo utiliza la cámara. No solicita permiso de micrófono.
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30, max: 30 } }
+        });
+
+        if (request !== state.cameraRequest) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+
+        // Mantener la pista de audio active permanentemente en memoria.
+        // Esto le indica a Chrome que la pestaña tiene una sesión de micrófono active,
+        // garantizando que SpeechRecognition NO vuelva a pedir permiso en cada reinicio.
+        const audioTracks = stream.getAudioTracks();
+        if (audioTracks.length > 0) {
+          persistentMicTrack = audioTracks[0];
+          persistentAudioStream = new MediaStream([persistentMicTrack]);
+          window.__persistentAudioStream = persistentAudioStream;
+        }
+
+        state.stream = stream;
+        const track = stream.getVideoTracks()[0];
+        track.addEventListener('ended', () => {
+          if (state.stream !== stream) return;
+          stopCamera(false);
+          showError('The camera disconnected or lost permission. Reconnect it and select Enable Webcam.');
+        });
+        track.addEventListener('mute', () => {
+          if (state.stream === stream) { tracking.epoch++; clearHand('Camera Signal Interrupted'); $('liveLabel').textContent = 'INTERRUMPIDA'; announce('The camera feed was temporarily interrupted.'); }
+        });
+        track.addEventListener('unmute', () => {
+          if (state.stream === stream) { $('liveLabel').textContent = 'LIVE'; announce('The camera feed has been restored.'); requestRender(); }
+        });
+        camera.muted = true;
+        preview.muted = true;
+        camera.srcObject = stream;
+        preview.srcObject = stream;
+        await Promise.all([camera.play(), preview.play()]);
+        if (request !== state.cameraRequest) return;
+        state.cameraPending = false;
+        state.cameraReady = true;
+        $('liveLabel').textContent = 'LIVE';
+        $('cameraInfo').textContent = 'Camera On · Hand Recognition Available · Microphone Not Required';
+        updateUI();
+        requestRender();
+        announce('Camera on. Show your hand in front of it.');
+        if (tracking.mode === 'hand') startTracking();
+      } catch (error) {
+        if (request !== state.cameraRequest) return;
+        stopCamera(false);
+        showError(cameraErrors[error.name] || 'The camera or microphone could not start. Check the connection and permissions.');
+      }
+    }
+
+    // 5. Controles e interacción. Botones y controles nativos utilizables con teclado.
+    $('loadButton').addEventListener('click', () => $('fileInput').click());
+    $('fileInput').addEventListener('change', (event) => { loadFile(event.target.files[0]); event.target.value = ''; });
+    $('playButton').addEventListener('click', () => {
+      if (video.paused || video.ended) playVideo();
+      else pauseVideo('Video paused. The camera stays live if enabled.');
+    });
+    $('restartButton').addEventListener('click', () => { seekTo(0); announce(video.paused ? 'Video reset to the beginning and paused.' : 'Video restarted.'); });
+    $('forwardButton').addEventListener('click', () => { seekTo(video.currentTime + 10); announce('Video Position: ' + formatTime(video.currentTime) + '.'); });
+    $('seek').addEventListener('input', (event) => seekTo(Number(event.target.value)));
+    $('startButton').addEventListener('click', () => {
+      if (state.experience) { stopTracking(false); pauseVideo('Experience paused. Select Start Experience to continue.'); }
+      else { unlockRecognitionAudio(); startTracking(); playVideo(true); }
+    });
+    $('cameraButton').addEventListener('click', () => {
+      if (state.stream || state.cameraPending) { clearError(); stopCamera(); }
+      else { unlockRecognitionAudio(); startCamera(); }
+    });
+    $('mirror').addEventListener('change', (event) => {
+      state.mirrored = event.target.checked;
+      preview.classList.toggle('mirrored', state.mirrored);
+      updatePointerReadout();
+      requestRender();
+      announce(state.mirrored ? 'Mirrored camera view on.' : 'Mirrored camera view off.');
+    });
+    ['transparency', 'fullscreenTransparency'].forEach((id) => {
+      $(id).addEventListener('input', (event) => setTransparency(event.target.value));
+    });
+    $('fullscreenButton').addEventListener('click', async () => {
+      clearError();
+      try {
+        if (document.fullscreenElement) await document.exitFullscreen();
+        else await $('viewer').requestFullscreen();
+      } catch {
+        showError('Full screen could not be opened. Check whether your browser allows it.');
+      }
+    });
+    document.addEventListener('fullscreenchange', () => {
+      const fullscreen = document.fullscreenElement === $('viewer');
+      $('fullscreenLabel').textContent = fullscreen ? 'Exit Full Screen' : 'Full Screen';
+      $('fullscreenExtra').hidden = !fullscreen;
+      $('fullscreenStatus').hidden = !fullscreen;
+      resizeLayers();
+    });
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        tracking.epoch++;
+        clearHand('Tracking paused while the tab is hidden');
+        stopRecognitionTone();
+        if (state.frame !== null) { cancelAnimationFrame(state.frame); state.frame = null; }
+      }
+      else if (!document.hidden) requestRender();
+    });
+    camera.addEventListener('resize', requestRender);
+    video.addEventListener('resize', requestRender);
+    new ResizeObserver(resizeLayers).observe($('stage'));
+    window.addEventListener('pagehide', (event) => {
+      disposeTracker();
+      stopRecognitionTone();
+      if (tracking.audio) { tracking.audio.close().catch(() => {}); tracking.audio = null; }
+      stopCamera(false);
+      pauseVideo();
+      if (!event.persisted) releaseVideo();
+      if (state.frame !== null) { cancelAnimationFrame(state.frame); state.frame = null; }
+    });
+    window.addEventListener('pageshow', (event) => {
+      if (event.persisted) { tracking.disposed = false; updateUI(); requestRender(); announce('Session restored. Turn on the camera when you want to continue.'); }
+    });
+
+    // 6. FASE 2: MediaPipe Hand Landmarker + dedo índice + cursor.
+    // Importación ESM directa: no requiere .bat, npm, Python ni archivos auxiliares.
+    // Biblioteca y WASM siempre proceden de la misma versión y el mismo proveedor.
+    // v0.10.21 tiene publicados vision_bundle.mjs y /wasm en UNPKG.
+    const MEDIAPIPE_SOURCES = [
+      { name: 'jsDelivr 0.10.21', module: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs', wasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm' },
+      { name: 'UNPKG 0.10.21', module: 'https://unpkg.com/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs', wasm: 'https://unpkg.com/@mediapipe/tasks-vision@0.10.21/wasm' },
+      { name: 'jsDelivr 0.10.15', module: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.15/vision_bundle.mjs', wasm: 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.15/wasm' },
+      { name: 'UNPKG 0.10.15', module: 'https://unpkg.com/@mediapipe/tasks-vision@0.10.15/vision_bundle.mjs', wasm: 'https://unpkg.com/@mediapipe/tasks-vision@0.10.15/wasm' }
+    ];
+    const HAND_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task';
+    const HAND_MODEL_SOURCES = [{ name: 'Google Model', url: HAND_MODEL_URL }];
+    const loaderLog = [];
+    const HAND_EDGES = [
+      [0,1],[1,2],[2,3],[3,4], // pulgar
+      [0,5],[5,6],[6,7],[7,8], // índice
+      [5,9],[9,10],[10,11],[11,12], // medio
+      [9,13],[13,14],[14,15],[15,16], // anular
+      [13,17],[17,18],[18,19],[19,20],[0,17] // meñique y palma
+    ];
+
+    // Extensiones del objeto de seguimiento que existe en la fase 1.
+    Object.assign(tracking, {
+      landmarker: null, loadPromise: null, disposed: false, lastError: '',
+      lastReadoutAt: 0, lastTimeMs: -1, currentVideoPixel: null,
+      modelObjectURL: null, modelFileName: null, successfulSource: null
+    });
+
+    function setHandStatus(message) {
+      if (tracking.message !== message) {
+        tracking.message = message;
+        $('handStatus').textContent = message;
+      }
+    }
+
+    function updateTrackingControls() {
+      const isMouse = tracking.mode === 'mouse';
+      $('stage').classList.toggle('mouse-mode', isMouse);
+      $('trackingButton').disabled = isMouse || !state.cameraReady;
+      $('trackingButton').textContent = isMouse ? 'Mouse Mode Active'
+        : tracking.enabled ? 'Disable Tracking' : 'Enable Tracking';
+      const labels = {
+        idle: 'Model Not Loaded', loading: 'Downloading hand model…',
+        ready: 'MediaPipe Ready · 21 Landmarks per Hand',
+        error: 'MediaPipe failed to load. Check diagnostics.'
+      };
+      $('modelState').textContent = isMouse ? 'Test Mode: MediaPipe Detection Off'
+        : labels[tracking.model] || labels.idle;
+      $('modelState').dataset.state = tracking.model;
+      $('soundEnabled').disabled = isMouse;
+      $('showSkeleton').disabled = isMouse;
+    }
+
+    function clearHand(message = 'Place a hand in front of the camera') {
+      tracking.landmarks = null;
+      tracking.smoothTip = null;
+      tracking.pointing = false;
+      tracking.lastHandAt = -Infinity;
+      tracking.lastPointingAt = -Infinity;
+      tracking.handFrames = 0;
+      tracking.poseFrames = 0;
+      tracking.lastSmoothAt = 0;
+      tracking.currentVideoPixel = null;
+      setHandStatus(message);
+      updatePointerReadout();
+      requestRender();
+    }
+
+    function stopRecognitionTone() {
+      // Los breves avisos se apagan también al detener la cámara o cambiar de pestaña.
+      if (!tracking.tone) return;
+      try {
+        tracking.tone.gain.gain.cancelScheduledValues(tracking.audio.currentTime);
+        tracking.tone.gain.gain.setTargetAtTime(0, tracking.audio.currentTime, 0.01);
+        tracking.tone.osc.stop(tracking.audio.currentTime + 0.05);
+      } catch { /* Un tono ya terminado no requiere detenerse de nuevo. */ }
+      tracking.tone = null;
+    }
+
+    function unlockRecognitionAudio() {
+      if (!$('soundEnabled').checked || tracking.disposed) return;
+      const Context = window.AudioContext || window.webkitAudioContext;
+      if (!Context) {
+        $('soundInfo').textContent = 'Este navegador no admite avisos Web Audio.';
+        return;
+      }
+      try {
+        if (!tracking.audio) tracking.audio = new Context();
+        if (tracking.audio.state === 'suspended') {
+          tracking.audio.resume().catch(() => {});
+        }
+        $('soundInfo').textContent = 'A brief, subtle sound when a hand is detected.';
+      } catch {
+        $('soundInfo').textContent = 'Sound could not start. The cursor will still work.';
+      }
+    }
+
+    function cueHandRecognized(now) {
+      if (!$('soundEnabled').checked || !tracking.audio || tracking.audio.state !== 'running'
+          || now - tracking.lastCue < 1800) return;
+      tracking.lastCue = now;
+      try {
+        stopRecognitionTone();
+        const ctx = tracking.audio;
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(520, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(660, ctx.currentTime + 0.11);
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.045, ctx.currentTime + 0.025);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.19);
+        osc.connect(gain).connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.21);
+        tracking.tone = { osc, gain };
+        osc.onended = () => {
+          if (tracking.tone?.osc === osc) tracking.tone = null;
+          try { osc.disconnect(); gain.disconnect(); } catch { /* Audio desconectado. */ }
+        };
+      } catch { /* La confirmación visual se mantiene si el audio falla. */ }
+    }
+
+    function loaderStep(message) {
+      const time = new Date().toLocaleTimeString('es-PE', { hour12: false });
+      loaderLog.push('[' + time + '] ' + message);
+      if (loaderLog.length > 28) loaderLog.shift();
+      $('modelDiagnostics').textContent = loaderLog.slice(-9).join('\n');
+      console.info('[EarthSense / MediaPipe]', message);
+    }
+
+    function withTimeout(promise, ms, label) {
+      let timer;
+      return Promise.race([
+        promise,
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Tiempo agotado: ' + label)), ms);
+        })
+      ]).finally(() => clearTimeout(timer));
+    }
+
+    function readableError(error) {
+      const message = String(error?.message || error || 'Unknown Error');
+      if (/Failed to fetch dynamically imported module|Importing a module script failed|error loading dynamically imported module/i.test(message))
+        return 'The JavaScript module could not be downloaded (CDN blocked, no internet, or missing local file).';
+      if (/404|Not Found/i.test(message)) return 'HTTP 404: file not found at the requested address: ' + message.slice(0, 125);
+      if (/fetch|network|load failed|ERR_|access|CORS/i.test(message))
+        return 'Network or CORS error: ' + message.slice(0, 140);
+      if (/wasm|webassembly|compile|instantiate|simd/i.test(message))
+        return 'WebAssembly: ' + message.slice(0, 150);
+      return message.slice(0, 200);
+    }
+
+    // Diagnóstico específico con respuesta HTTP, antes de inicializar el motor.
+    async function fetchBytes(url, label, timeoutMs = 25000) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const resp = await fetch(url, { cache: 'default', signal: controller.signal });
+        if (!resp.ok) throw new Error('HTTP ' + resp.status + ' ' + resp.statusText + ' en ' + label);
+        const buffer = new Uint8Array(await resp.arrayBuffer());
+        if (buffer.byteLength < 100000) throw new Error('File too small (' + buffer.byteLength + ' bytes): ' + label);
+        loaderStep('OK: ' + label + ' (' + (buffer.byteLength / 1048576).toFixed(1) + ' MB).');
+        return buffer;
+      } catch (error) {
+        throw new Error(label + ': ' + (error.name === 'AbortError' ? 'tiempo agotado o red bloqueada' : readableError(error)));
+      } finally { clearTimeout(timer); }
+    }
+
+    async function getModelBytes() {
+      if (tracking.modelFileBytes) return tracking.modelFileBytes;
+      if (tracking.modelObjectURL) {
+        loaderStep('Using user-selected model…');
+        return fetchBytes(tracking.modelObjectURL, tracking.modelFileName || 'Selected Model');
+      }
+      const problems = [];
+      for (const source of HAND_MODEL_SOURCES) {
+        try {
+          loaderStep('Buscando ' + source.name + '…');
+          return await fetchBytes(source.url, source.name, 25000);
+        } catch (error) {
+          problems.push(error.message);
+          loaderStep('No disponible: ' + error.message);
+        }
+      }
+      throw new Error('Could not download hand_landmarker.task. ' + problems.join(' | '));
+    }
+
+    async function loadHandModel() {
+      if (tracking.landmarker) return tracking.landmarker;
+      if (tracking.loadPromise) return tracking.loadPromise;
+      tracking.disposed = false;
+      tracking.model = 'loading';
+      tracking.lastError = '';
+      loaderLog.length = 0;
+      updateTrackingControls();
+      setHandStatus('Preparando MediaPipe…');
+      loaderStep('Iniciando carga. Si algo falla, revisa estos pasos.');
+      if (location.protocol === 'file:') {
+        loaderStep('Notice: opened using file://. An online load will be attempted; if it fails, use VS Code → Live Server.');
+      }
+      tracking.loadPromise = (async () => {
+        const problems = [];
+        let modelBytes;
+        try {
+          modelBytes = await getModelBytes();
+        } catch (error) {
+          tracking.lastError = error.message;
+          loaderStep('MODEL ERROR: ' + error.message);
+          tracking.enabled = false;
+          tracking.model = 'error';
+          setHandStatus('Could Not Download Hand Model');
+          updateTrackingControls();
+          showError('The hand model could not be downloaded. Check your internet connection or select it under “How can I use MediaPipe without .bat files?”. Details: ' + error.message);
+          return null;
+        }
+        for (const source of MEDIAPIPE_SOURCES) {
+          if (tracking.disposed) return null;
+          let detector;
+          try {
+            loaderStep('Probando biblioteca ' + source.name + '…');
+            const module = await withTimeout(import(/* webpackIgnore: true */ source.module), 18000, 'importing ' + source.name);
+            const { FilesetResolver, HandLandmarker } = module;
+            if (!FilesetResolver?.forVisionTasks || !HandLandmarker?.createFromOptions) {
+              throw new Error('Official HandLandmarker and FilesetResolver APIs were not found.');
+            }
+            loaderStep('Biblioteca JS cargada. Abriendo WebAssembly de ' + source.name + '…');
+            const vision = await withTimeout(FilesetResolver.forVisionTasks(source.wasm), 23000, 'WASM de ' + source.name);
+            if (tracking.disposed) return null;
+            loaderStep('Model ready. Initializing CPU detector…');
+            const options = (delegate) => ({
+              baseOptions: { modelAssetBuffer: new Uint8Array(modelBytes), delegate },
+              runningMode: 'VIDEO', numHands: 1,
+              minHandDetectionConfidence: 0.4, minHandPresenceConfidence: 0.4, minTrackingConfidence: 0.4
+            });
+            try {
+              detector = await withTimeout(HandLandmarker.createFromOptions(vision, options('CPU')), 27000, 'CPU initialization');
+            } catch (cpuError) {
+              loaderStep('CPU no disponible (' + readableError(cpuError) + '). Probando GPU…');
+              detector = await withTimeout(HandLandmarker.createFromOptions(vision, options('GPU')), 27000, 'GPU initialization');
+            }
+            if (tracking.disposed) { detector?.close(); return null; }
+            tracking.landmarker = detector;
+            tracking.successfulSource = source.name;
+            tracking.model = 'ready';
+            tracking.lastCameraTime = -1;
+            tracking.lastTimeMs = -1;
+            tracking.lastError = '';
+            loaderStep('READY: model initialized with ' + source.name + '.');
+            setHandStatus(tracking.enabled ? 'Extend your index finger in front of the camera' : 'Model ready. Enable tracking.');
+            updateTrackingControls();
+            announce('MediaPipe is ready. Extend your index finger to move the cursor.');
+            requestRender();
+            return detector;
+          } catch (error) {
+            try { detector?.close(); } catch {}
+            const detail = source.name + ': ' + readableError(error);
+            problems.push(detail);
+            loaderStep('FALLÓ ' + detail);
+            console.warn('[EarthSense] MediaPipe failure:', source, error);
+          }
+        }
+        if (tracking.disposed) return null;
+        tracking.model = 'error';
+        tracking.enabled = false;
+        tracking.lastError = problems.join(' | ');
+        setHandStatus('MediaPipe unavailable. Try enabling tracking again.');
+        updateTrackingControls();
+        loaderStep('No fue posible inicializar MediaPipe.');
+        showError('Unable to load the library or WebAssembly. Check your internet connection and open this HTML file with Live Server in VS Code (without .bat files). Review diagnostics or the F12 console. Last error: ' + (problems.at(-1) || 'no identificado'));
+        return null;
+      })().finally(() => { tracking.loadPromise = null; });
+      return tracking.loadPromise;
+    }
+
+    async function diagnoseResources() {
+      if (tracking.loadPromise) { loaderStep('A load is in progress; wait for it to finish.'); return; }
+      loaderLog.length = 0;
+      loaderStep('Checking Resource Accessibility…');
+      loaderStep('Page: ' + location.protocol + '//' + location.host + (window.isSecureContext ? ' · contexto seguro' : ' · contexto NO seguro'));
+      if (location.protocol === 'file:') loaderStep('Notice: file:// may be restricted. If it fails, open with VS Code Live Server (localhost); no installation script needed.');
+      loaderStep('Reported Connection: ' + (navigator.onLine ? 'online' : 'offline'));
+      const paths = [
+        { name: 'Biblioteca JS (jsDelivr 0.10.21)', url: MEDIAPIPE_SOURCES[0].module },
+        { name: 'WASM (jsDelivr 0.10.21)', url: MEDIAPIPE_SOURCES[0].wasm + '/vision_wasm_internal.wasm' },
+        { name: 'Biblioteca JS (UNPKG 0.10.21)', url: MEDIAPIPE_SOURCES[1].module },
+        { name: 'Biblioteca JS (jsDelivr 0.10.15)', url: MEDIAPIPE_SOURCES[2].module },
+        { name: 'Google Model', url: HAND_MODEL_URL }
+      ];
+      $('diagnoseButton').disabled = true;
+      for (const item of paths) {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 7000);
+        try {
+          const resp = await fetch(item.url, { method: 'GET', signal: controller.signal, cache: 'no-store' });
+          loaderStep(item.name + ': ' + (resp.ok ? 'ACCESIBLE (HTTP ' + resp.status + ')' : 'HTTP ' + resp.status));
+          await resp.body?.cancel().catch(() => {});
+        } catch (error) {
+          loaderStep(item.name + ': NO accesible (' + readableError(error) + ')');
+        } finally { clearTimeout(timer); }
+      }
+      $('diagnoseButton').disabled = false;
+      loaderStep('Diagnostics complete. If the CDNs fail, check internet access, blockers, and open with Live Server (localhost).');
+    }
+
+    $('diagnoseButton').addEventListener('click', diagnoseResources);
+
+    function startTracking() {
+      if (tracking.mode === 'mouse' || !state.cameraReady || tracking.disposed) return;
+      if (tracking.enabled) return;
+      tracking.enabled = true;
+      tracking.epoch++;
+      tracking.lastCameraTime = -1;
+      tracking.lastSent = -Infinity;
+      tracking.lastTimeMs = -1;
+      tracking.cueOnRecognition = true;
+      tracking.lastHandAt = -Infinity;
+      setHandStatus(tracking.model === 'ready' ? 'Show your hand and extend your index finger' : 'Loading hand tracker…');
+      updateTrackingControls();
+      if (tracking.model !== 'ready') loadHandModel();
+      requestRender();
+    }
+
+    function stopTracking(notify = true) {
+      tracking.enabled = false;
+      tracking.epoch++;
+      tracking.cueOnRecognition = false;
+      stopRecognitionTone();
+      clearHand('Tracking Disabled');
+      updateTrackingControls();
+      if (notify) announce('Hand tracking disabled.');
+    }
+
+    function disposeTracker() {
+      tracking.disposed = true;
+      tracking.enabled = false;
+      tracking.epoch++;
+      const detector = tracking.landmarker;
+      tracking.landmarker = null;
+      if (detector) { try { detector.close(); } catch { /* Limpieza final. */ } }
+      tracking.model = 'idle';
+    }
+
+    // MediaPipe usa puntos normalizados de la CÁMARA SIN ESPEJO.
+    // El espejo se aplica UNA sola vez mediante coordinates.cameraToStage().
+    const dist3D = (a, b) => {
+      if (!a || !b) return 0;
+      return Math.hypot(a.x - b.x, a.y - b.y, (a.z || 0) - (b.z || 0));
+    };
+
+    const jointAngle3D = (a, b, c) => {
+      if (!a || !b || !c) return 0;
+      const ux = a.x - b.x, uy = a.y - b.y, uz = (a.z || 0) - (b.z || 0);
+      const vx = c.x - b.x, vy = c.y - b.y, vz = (c.z || 0) - (b.z || 0);
+      const lenU = Math.hypot(ux, uy, uz);
+      const lenV = Math.hypot(vx, vy, vz);
+      if (lenU < 1e-6 || lenV < 1e-6) return 0;
+      const cos = (ux * vx + uy * vy + uz * vz) / (lenU * lenV);
+      return Math.acos(Math.max(-1, Math.min(1, cos))) * 180 / Math.PI;
+    };
+
+    function fingerStraightness(points, mcp, pip, dip, tip) {
+      const pM = points[mcp], pP = points[pip], pD = points[dip], pT = points[tip];
+      if (!pM || !pP || !pD || !pT) return 0;
+      const direct = dist3D(pM, pT);
+      const path = dist3D(pM, pP) + dist3D(pP, pD) + dist3D(pD, pT);
+      return path < 1e-6 ? 0 : (direct / path);
+    }
+
+    function isIndexExtended(points) {
+      const p5 = points[5], p6 = points[6], p7 = points[7], p8 = points[8];
+      if (!p5 || !p6 || !p7 || !p8) return false;
+
+      const straightnessAll = fingerStraightness(points, 5, 6, 7, 8);
+      const directPipTip = dist3D(p6, p8);
+      const pathPipTip = dist3D(p6, p7) + dist3D(p7, p8);
+      const straightnessPipTip = pathPipTip < 1e-6 ? 0 : (directPipTip / pathPipTip);
+
+      const dMcpTip = dist3D(p5, p8);
+      const dMcpPip = dist3D(p5, p6);
+
+      const anglePip = jointAngle3D(p5, p6, p7);
+      const angleDip = jointAngle3D(p6, p7, p8);
+
+      // El índice está extendido si la punta se proyecta rectilíneamente desde PIP o nudillo,
+      // tolerando escorzo de perspectiva hacia la cámara o leve curvatura natural:
+      const isStraight = straightnessAll > 0.74 || (straightnessPipTip > 0.80 && dMcpTip > dMcpPip * 1.15);
+      const isAngleAligned = anglePip > 120 && angleDip > 115;
+
+      return isStraight || isAngleAligned;
+    }
+
+    function isHandPartiallyVisible(points) {
+      // Comprueba si la mano no se muestra en su totalidad (muñeca o puntos cortados por el borde)
+      const wrist = points[0];
+      if (!wrist || wrist.x < 0.08 || wrist.x > 0.92 || wrist.y < 0.08 || wrist.y > 0.92) {
+        return true;
+      }
+      for (let i = 0; i < points.length; i++) {
+        const pt = points[i];
+        if (pt && (pt.x <= 0.04 || pt.x >= 0.96 || pt.y <= 0.04 || pt.y >= 0.96)) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    function indexIsPointing(points) {
+      if (!points || !points[8]) return false;
+
+      const indexExt = isIndexExtended(points);
+      if (!indexExt) return false;
+
+      // Si la mano no se muestra en su totalidad, no exigimos evaluar los otros dedos,
+      // pues pueden estar recortados por el encuadre o con oclusión:
+      if (isHandPartiallyVisible(points)) {
+        return true;
+      }
+
+      // Mano completa en el encuadre:
+      const middleExt = fingerStraightness(points, 9, 10, 11, 12) > 0.78 && jointAngle3D(points[9], points[10], points[11]) > 130;
+      const ringExt = fingerStraightness(points, 13, 14, 15, 16) > 0.78 && jointAngle3D(points[13], points[14], points[15]) > 130;
+      const pinkyExt = fingerStraightness(points, 17, 18, 19, 20) > 0.78 && jointAngle3D(points[17], points[18], points[19]) > 130;
+
+      const otherFolded = Number(!middleExt) + Number(!ringExt) + Number(!pinkyExt);
+
+      // Si al menos un dedo está relajado o doblado, el gesto es de señalar:
+      if (otherFolded >= 1) {
+        return true;
+      }
+
+      // Si todos los dedos parecen extendidos, verificar si el índice destaca o si ya estaba señalando:
+      const wrist = points[0] || points[5];
+      const dIndex = dist3D(wrist, points[8]);
+      const dMiddle = dist3D(wrist, points[12]);
+      if (dIndex >= dMiddle * 0.94) {
+        if (tracking.pointing) return true;
+      }
+
+      return tracking.pointing;
+    }
+
+    function handleLandmarks(result, timestamp) {
+      if (!tracking.enabled || tracking.mode !== 'hand') return;
+      const points = result?.landmarks?.[0];
+      if (!points?.[8]) {
+        // Tolerancia temporal para ausencias momentáneas de fotogramas
+        if (timestamp - tracking.lastHandAt > 350) {
+          if (tracking.landmarks || tracking.pointing) clearHand('No hand detected. Show your hand to the camera.');
+          else setHandStatus('No hand detected. Show your hand to the camera.');
+          tracking.cueOnRecognition = true;
+        }
+        return;
+      }
+      const firstHand = !tracking.landmarks;
+      tracking.landmarks = points;
+      tracking.lastHandAt = timestamp;
+      tracking.handFrames = Math.min(10, tracking.handFrames + 1);
+      if (firstHand && tracking.cueOnRecognition) {
+        cueHandRecognized(timestamp);
+        tracking.cueOnRecognition = false;
+      }
+
+      const pose = indexIsPointing(points);
+      const previousPointing = tracking.pointing;
+
+      if (pose) {
+        tracking.lastPointingAt = timestamp;
+        tracking.poseFrames = Math.min(6, tracking.poseFrames + 2);
+        tracking.pointing = true;
+      } else {
+        tracking.poseFrames = Math.max(0, tracking.poseFrames - 1);
+        // Histéresis: si venía señalando y el índice sigue extendido, mantener puntero durante un periodo de gracia
+        const inGracePeriod = tracking.pointing && (timestamp - tracking.lastPointingAt < 350);
+        if (inGracePeriod && isIndexExtended(points)) {
+          tracking.pointing = true;
+        } else if (timestamp - tracking.lastPointingAt >= 350) {
+          tracking.pointing = false;
+        }
+      }
+
+      if (tracking.pointing) {
+        const rawTip = points[8];
+        const tipX = Math.max(0, Math.min(1, rawTip.x));
+        const tipY = Math.max(0, Math.min(1, rawTip.y));
+
+        if (!tracking.smoothTip) {
+          tracking.smoothTip = { x: tipX, y: tipY };
+        } else {
+          const dt = Math.max(1, Math.min(150, timestamp - tracking.lastSmoothAt));
+          const dx = tipX - tracking.smoothTip.x;
+          const dy = tipY - tracking.smoothTip.y;
+          const dist = Math.hypot(dx, dy);
+          // Suavizado adaptativo EMA: ágil en movimiento rápido y estable en reposo
+          const timeConstant = dist > 0.05 ? 32 : (dist > 0.012 ? 48 : 70);
+          const alpha = 1 - Math.exp(-dt / timeConstant);
+          tracking.smoothTip.x += alpha * dx;
+          tracking.smoothTip.y += alpha * dy;
+        }
+        tracking.lastSmoothAt = timestamp;
+        setHandStatus('Index Finger Detected · Pointer Active');
+      } else {
+        tracking.smoothTip = null;
+        setHandStatus('Hand Detected · Extend Your Index Finger to Point');
+      }
+
+      if (timestamp - tracking.lastReadoutAt > 170 || previousPointing !== tracking.pointing) {
+        tracking.lastReadoutAt = timestamp;
+        updatePointerReadout();
+      }
+      requestRender();
+    }
+
+    function pumpTracking(timestamp) {
+      if (!tracking.enabled || tracking.mode !== 'hand' || tracking.model !== 'ready' || !tracking.landmarker
+          || !state.cameraReady || document.hidden || camera.readyState < HTMLMediaElement.HAVE_CURRENT_DATA) return;
+      if (timestamp - tracking.lastSent < tracking.interval || camera.currentTime === tracking.lastCameraTime) return;
+      tracking.lastSent = timestamp;
+      tracking.lastCameraTime = camera.currentTime;
+      // Solo una inferencia por turno del bucle: detectForVideo es sincrónica.
+      try {
+        const safeTime = Math.max(performance.now(), tracking.lastTimeMs + 0.1);
+        tracking.lastTimeMs = safeTime;
+        handleLandmarks(tracking.landmarker.detectForVideo(camera, safeTime), timestamp);
+      } catch (error) {
+        console.error('Camera processing error:', error);
+        tracking.enabled = false;
+        tracking.model = 'error';
+        tracking.lastError = String(error?.message || error);
+        const failedDetector = tracking.landmarker;
+        tracking.landmarker = null;
+        try { failedDetector?.close(); } catch { /* Permitir reintento. */ }
+        clearHand('Hand recognition error');
+        updateTrackingControls();
+        showError('MediaPipe tracking stopped. Turn the camera off and on again, or restart tracking.');
+      }
+    }
+
+    function currentStagePoint() {
+      if (tracking.mode === 'mouse') {
+        return tracking.mousePoint
+          ? { x: tracking.mousePoint.x * state.stageWidth, y: tracking.mousePoint.y * state.stageHeight }
+          : null;
+      }
+      if (!tracking.enabled || !tracking.pointing || !tracking.smoothTip) return null;
+      return coordinates.cameraToStage(tracking.smoothTip.x, tracking.smoothTip.y);
+    }
+
+    // Punto en la resolución ORIGINAL del video (sin opacidad), destinado a la fase 3.
+    // Si el dedo está sobre una banda vacía, devuelve null.
+    function currentVideoPoint() {
+      const p = currentStagePoint();
+      return p ? coordinates.stageToVideo(p.x, p.y) : null;
+    }
+
+    function updatePointerReadout() {
+      const p = currentStagePoint();
+      if (!p) {
+        $('pointerPosition').textContent = 'Pointer position unavailable';
+        tracking.currentVideoPixel = null;
+        return;
+      }
+      const videoPixel = coordinates.stageToVideo(p.x, p.y);
+      tracking.currentVideoPixel = videoPixel;
+      $('pointerPosition').textContent = 'X ' + Math.round(p.x) + ' · Y ' + Math.round(p.y)
+        + (videoPixel ? ' · video ' + videoPixel.x + ', ' + videoPixel.y : ' · outside video');
+    }
+
+    function drawTracking() {
+      handContext.clearRect(0, 0, state.stageWidth, state.stageHeight);
+      if (tracking.mode === 'hand' && tracking.enabled && tracking.landmarks && $('showSkeleton').checked) {
+        const mapped = tracking.landmarks.map((p) => coordinates.cameraToStage(p.x, p.y));
+        handContext.save();
+        handContext.strokeStyle = 'rgba(125, 226, 177, .82)';
+        handContext.lineWidth = 2;
+        handContext.lineCap = 'round';
+        for (const [i, j] of HAND_EDGES) {
+          const a = mapped[i], b = mapped[j];
+          if (!a || !b) continue;
+          handContext.beginPath();
+          handContext.moveTo(a.x, a.y);
+          handContext.lineTo(b.x, b.y);
+          handContext.stroke();
+        }
+        for (let i = 0; i < mapped.length; i++) {
+          const p = mapped[i];
+          if (!p) continue;
+          handContext.beginPath();
+          handContext.arc(p.x, p.y, i === 8 ? 5 : 2.4, 0, Math.PI * 2);
+          handContext.fillStyle = i === 8 ? '#ffd38a' : '#67dafa';
+          handContext.fill();
+        }
+        handContext.restore();
+      }
+      const p = currentStagePoint();
+      if (!p) return;
+      const isBurning = window.ContinuousDrone && window.ContinuousDrone.pointerIsOrange;
+      handContext.save();
+      handContext.shadowBlur = isBurning ? 32 : 22;
+      handContext.shadowColor = isBurning ? '#ff4400' : '#67dafa';
+      handContext.lineWidth = 3;
+      handContext.strokeStyle = isBurning ? '#fff5cc' : '#ffffff';
+      handContext.fillStyle = isBurning ? 'rgba(255, 85, 0, .45)' : 'rgba(103, 218, 250, .23)';
+      handContext.beginPath();
+      handContext.arc(p.x, p.y, isBurning ? 16 : 14, 0, Math.PI * 2);
+      handContext.fill();
+      handContext.stroke();
+      handContext.shadowBlur = 0;
+      handContext.fillStyle = isBurning ? '#ffaa00' : '#67dafa';
+      handContext.beginPath();
+      handContext.arc(p.x, p.y, isBurning ? 5.5 : 4.5, 0, Math.PI * 2);
+      handContext.fill();
+      handContext.strokeStyle = isBurning ? '#ff6600' : '#67dafa';
+      handContext.lineWidth = 2;
+      for (const [dx, dy, ex, ey] of [[-25,0,-18,0],[18,0,25,0],[0,-25,0,-18],[0,18,0,25]]) {
+        handContext.beginPath();
+        handContext.moveTo(p.x + dx, p.y + dy);
+        handContext.lineTo(p.x + ex, p.y + ey);
+        handContext.stroke();
+      }
+      handContext.restore();
+    }
+
+    // Modelo local opcional, para evitar la descarga bloqueada del .task oficial.
+    $('localModelInput').addEventListener('change', (event) => {
+      const file = event.target.files?.[0];
+      if (!file) return;
+      if (!/\.task$/i.test(file.name) || file.size < 100_000 || file.size > 80_000_000) {
+        showError('Select a valid MediaPipe hand model (.task), between 100 KB and 80 MB.');
+        event.target.value = '';
+        return;
+      }
+      if (tracking.loadPromise) {
+        showError('The model is loading. Select the file after the current attempt finishes.');
+        event.target.value = '';
+        return;
+      }
+      if (tracking.modelObjectURL) URL.revokeObjectURL(tracking.modelObjectURL);
+      tracking.modelObjectURL = URL.createObjectURL(file);
+      tracking.modelFileBytes = null;
+      tracking.modelFileName = file.name;
+      $('localModelStatus').textContent = 'Selected Model: ' + file.name;
+      if (tracking.landmarker) {
+        try { tracking.landmarker.close(); } catch {}
+        tracking.landmarker = null;
+      }
+      tracking.model = 'idle';
+      tracking.enabled = false;
+      updateTrackingControls();
+      announce('Local model selected. Select Enable Tracking to load it.');
+      if (state.cameraReady && tracking.mode === 'hand') startTracking();
+      event.target.value = '';
+    });
+
+    // Prueba alternativa independiente de cámara, para desarrollar la futura fase de colores.
+    $('trackingButton').addEventListener('click', () => {
+      if (tracking.enabled) stopTracking();
+      else { clearError(); unlockRecognitionAudio(); startTracking(); }
+    });
+    $('mouseMode').addEventListener('change', (event) => {
+      if (event.target.checked) {
+        stopTracking(false);
+        tracking.mode = 'mouse';
+        tracking.mousePoint = null;
+        setHandStatus('Mouse Mode · Move Your Pointer Across the Combined View');
+        announce('Mouse Test Mode enabled. Hand tracking is paused.');
+      } else {
+        tracking.mode = 'hand';
+        tracking.mousePoint = null;
+        setHandStatus(state.cameraReady ? 'Show Your Hand to the Camera' : 'Enable the Camera to Recognize Your Hand');
+        if (state.cameraReady) startTracking();
+        announce('Test Mode disabled. ' + (state.cameraReady ? 'Hand tracking enabled.' : 'Enable the camera to use MediaPipe.'));
+      }
+      updatePointerReadout();
+      updateUI();
+      requestRender();
+    });
+    $('stage').addEventListener('pointermove', (event) => {
+      if (tracking.mode !== 'mouse' || event.pointerType === 'touch') return;
+      const p = coordinates.clientToStage(event.clientX, event.clientY);
+      tracking.mousePoint = {
+        x: Math.max(0, Math.min(1, p.x / state.stageWidth)),
+        y: Math.max(0, Math.min(1, p.y / state.stageHeight))
+      };
+      setHandStatus('Mouse Mode · Pointer Active');
+      updatePointerReadout();
+      requestRender();
+    });
+    $('stage').addEventListener('pointerleave', () => {
+      if (tracking.mode !== 'mouse') return;
+      tracking.mousePoint = null;
+      setHandStatus('Mouse Mode · Move Your Pointer Across the Video');
+      updatePointerReadout();
+      requestRender();
+    });
+    $('showSkeleton').addEventListener('change', requestRender);
+    $('soundEnabled').addEventListener('change', (event) => {
+      if (event.target.checked) unlockRecognitionAudio();
+      else stopRecognitionTone();
+    });
+
+    // 7. Análisis HSV / 8. Música / 9. Voz y exploración accesible: pendientes de las fases 3–5.
+    // El análisis futuro utilizará currentVideoPoint(), videoSource y analysisCanvas.
+    if (!$('viewer').requestFullscreen || !document.fullscreenEnabled) {
+      $('fullscreenButton').disabled = true;
+      $('fullscreenButton').title = 'Full Screen no disponible en este navegador.';
+    }
+    if (location.protocol === 'file:') {
+      announce('File opened directly. If MediaPipe cannot load, open this HTML file with Visual Studio Code Live Server. No BAT files are required.');
+    }
+    setTransparency(40);
+    resizeLayers();
+  </script>
+
+  <!-- ═══ FASE 3 · Extracción de fotogramas + sonificación ═══
+       Basado en earth_information_jukebox_2026_v1.html, pero con Web Audio nativo
+       (sin Tone.js) y usando un <video> oculto para no interferir con la reproducción
+       principal ni con el seguimiento de manos. -->
+  <script>
+  (() => {
+    'use strict';
+    const $ = (id) => document.getElementById(id);
+    const mainVideo = $('videoSource');
+
+    const SCALES = {
+      pentatonic: ['C4', 'D4', 'E4', 'G4', 'A4', 'C5', 'D5', 'E5'],
+      major: ['C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5'],
+      minor: ['A3', 'C4', 'D4', 'E4', 'F4', 'G4', 'A4', 'C5'],
+      lydian: ['F3', 'G3', 'A3', 'B3', 'C4', 'D4', 'E4', 'F4'],
+      dorian: ['D4', 'E4', 'F4', 'G4', 'A4', 'B4', 'C5', 'D5']
+    };
+    const SCALE_LABELS = { auto: 'automatic', pentatonic: 'pentatonic', major: 'mayor', minor: 'menor', lydian: 'lidia', dorian: 'dorian' };
+    const sonic = { frames: [], index: 0, playing: false, timer: null, scale: 'auto', bpm: 90, volDb: -6, runId: 0, busy: false, lastSyncIdx: -1, sourceName: '' };
+
+    // ── Motor de audio (Web Audio nativo) ──
+    let actx = null, master = null, analyser = null, scopeUntil = 0, scopeRaf = 0;
+    const dbToGain = (db) => Math.pow(10, db / 20);
+    function ensureAudio() {
+      if (!actx) {
+        const AC = window.AudioContext || window.webkitAudioContext;
+        if (!AC) return null;
+        actx = new AC();
+        master = actx.createGain();
+        master.gain.value = dbToGain(sonic.volDb);
+        const limiter = actx.createDynamicsCompressor();
+        analyser = actx.createAnalyser();
+        analyser.fftSize = 128;
+        master.connect(limiter); limiter.connect(actx.destination); master.connect(analyser);
+      }
+      if (actx.state === 'suspended') actx.resume().catch(() => {});
+      return actx;
+    }
+    const resumeAudio = () => { if (actx && actx.state === 'suspended') actx.resume().catch(() => {}); };
+    window.addEventListener('pointerdown', resumeAudio);
+    window.addEventListener('keydown', resumeAudio);
+
+    const SEMITONES = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+    const NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    function noteToMidi(name) {
+      const m = /^([A-G])(#|b)?(-?\d+)$/.exec(name);
+      return 12 * (Number(m[3]) + 1) + SEMITONES[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0);
+    }
+    const midiToFreq = (m) => 440 * Math.pow(2, (m - 69) / 12);
+    const midiToName = (m) => NAMES[m % 12] + (Math.floor(m / 12) - 1);
+
+    // Escala pentatonic mayor consonante para afinación musical perfecta
+    const PENTATONIC_FREQS = [
+      65.41, 73.42, 82.41, 98.00, 110.00,
+      130.81, 146.83, 164.81, 196.00, 220.00,
+      261.63, 293.66, 329.63, 392.00, 440.00,
+      523.25, 587.33, 659.25, 783.99, 880.00
+    ];
+    function quantizeToConsonant(f) {
+      let best = PENTATONIC_FREQS[0], minD = Infinity;
+      for (const p of PENTATONIC_FREQS) {
+        const d = Math.abs(p - f);
+        if (d < minD) { minD = d; best = p; }
+      }
+      return best;
+    }
+
+    // Voz cálida acústica con filtro aterciopelado y envolvente natural
+    function voice(freq, type, t0, dur, peak, a, d, s, r) {
+      const osc = actx.createOscillator();
+      const filter = actx.createBiquadFilter();
+      const gain = actx.createGain();
+
+      osc.type = 'sine'; // Onda senoidal pura para máxima armonía sin zumbidos molestos
+      osc.frequency.setValueAtTime(freq, t0);
+
+      filter.type = 'lowpass';
+      filter.frequency.setValueAtTime(Math.min(1600, freq * 2.8), t0);
+      filter.Q.setValueAtTime(0.707, t0);
+
+      const tOff = t0 + Math.max(dur, a + d);
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.linearRampToValueAtTime(peak, t0 + Math.max(0.08, a));
+      gain.gain.linearRampToValueAtTime(peak * s, t0 + a + d);
+      gain.gain.setValueAtTime(peak * s, tOff);
+      gain.gain.exponentialRampToValueAtTime(0.0001, tOff + Math.max(1.6, r));
+
+      osc.connect(filter).connect(gain).connect(master);
+      osc.start(t0); osc.stop(tOff + Math.max(1.6, r) + 0.1);
+    }
+
+    function frameToPitch(frame) {
+      let scale = SCALES.pentatonic;
+      if (sonic.scale !== 'auto' && SCALES[sonic.scale]) scale = SCALES[sonic.scale];
+      else if (frame.rgb.r > frame.rgb.b + 20) scale = SCALES.major;
+      else if (frame.rgb.b > frame.rgb.r + 20) scale = SCALES.minor;
+      else scale = SCALES.lydian;
+      const idx = Math.floor((frame.brightness / 256) * scale.length);
+      return scale[Math.min(idx, scale.length - 1)];
+    }
+
+    function playFrameTone(frame) {
+      if (!ensureAudio()) return;
+      const now = actx.currentTime + 0.02;
+      const beat = 60 / sonic.bpm;
+      const m = noteToMidi(frameToPitch(frame));
+
+      // Acorde armónico, agradable y celestial: fundamental + quinta + octava + subgrave cálido
+      voice(midiToFreq(m), 'sine', now, beat, 0.34, 0.12, 0.3, 0.5, 2.2);
+      voice(midiToFreq(m + 7), 'sine', now + 0.04, beat, 0.20, 0.15, 0.3, 0.4, 2.0); // Quinta pura
+      voice(midiToFreq(m + 12), 'sine', now + 0.08, beat, 0.12, 0.18, 0.3, 0.3, 1.8); // Octava cristalina
+      voice(midiToFreq(m - 12), 'sine', now, beat * 1.5, 0.24, 0.20, 0.5, 0.6, 2.5); // Pedal grave profundo
+      kickScope(2.2);
+    }
+
+    // ── Osciloscopio ──
+    function kickScope(seconds) {
+      scopeUntil = performance.now() + seconds * 1000;
+      if (!scopeRaf) scopeRaf = requestAnimationFrame(drawScope);
+    }
+    function drawScope() {
+      const c = $('sonicScope');
+      const w = c.clientWidth, h = c.clientHeight;
+      if (!w) { scopeRaf = 0; return; }
+      if (c.width !== w) c.width = w;
+      if (c.height !== h) c.height = h;
+      const x = c.getContext('2d');
+      x.fillStyle = '#08111e'; x.fillRect(0, 0, w, h);
+      const live = analyser && performance.now() < scopeUntil;
+      x.beginPath();
+      x.lineWidth = live ? 2 : 1;
+      x.strokeStyle = live ? '#38bdf8' : 'rgba(56,189,248,.25)';
+      if (live) {
+        const buf = new Uint8Array(analyser.fftSize);
+        analyser.getByteTimeDomainData(buf);
+        const step = w / (buf.length - 1);
+        buf.forEach((v, i) => { const y = (v / 255) * h; i ? x.lineTo(i * step, y) : x.moveTo(0, y); });
+      } else { x.moveTo(0, h / 2); x.lineTo(w, h / 2); }
+      x.stroke();
+      scopeRaf = live ? requestAnimationFrame(drawScope) : 0;
+    }
+
+    // ── Análisis de imagen con detección cromática de tonos cálidos y fuego ──
+    const hex2 = (n) => n.toString(16).padStart(2, '0');
+
+    // Detecta tonos amarillos y rojos (cálidos): Hue en [335°-360°] U [0°-68°] con saturación y brillo visible
+    function isWarmRedYellow(r, g, b) {
+      const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+      if (max < 40 || d < 25) return false;
+      let h = 0;
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+      else if (max === g) h = ((b - r) / d + 2) * 60;
+      else h = ((r - g) / d + 4) * 60;
+      const sat = d / max;
+      return (h <= 68 || h >= 335) && sat >= 0.22 && max >= 50;
+    }
+
+    // Detecta color naranja (área ígnea): Hue entre 12° y 48° (centrado en ~28°), saturación moderada/alta
+    function isOrangeColor(r, g, b) {
+      const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+      if (max < 60 || d < 35) return { isOrange: false, intensity: 0 };
+      let h = 0;
+      if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) * 60;
+      else if (max === g) h = ((b - r) / d + 2) * 60;
+      else h = ((r - g) / d + 4) * 60;
+      const sat = d / max;
+      const val = max / 255;
+      if (h >= 12 && h <= 48 && sat >= 0.35 && val >= 0.25) {
+        const hueCenter = 1 - Math.abs(h - 28) / 20;
+        const intensity = Math.max(0, Math.min(1, hueCenter * sat * (val > 0.4 ? 1 : val * 2)));
+        return { isOrange: true, intensity, h, sat, val };
+      }
+      return { isOrange: false, intensity: 0 };
+    }
+
+    // Generador procedural de audio de fuego quemándose (murmullo de brasa + crujidos/chispas estocásticos)
+    function createFireNoiseBuffer(ctx, duration = 3.0) {
+      const sampleRate = ctx.sampleRate || 44100;
+      const length = Math.floor(sampleRate * duration);
+      const buffer = ctx.createBuffer(1, length, sampleRate);
+      const data = buffer.getChannelData(0);
+
+      // Capa 1: Siseo de aire caliente y brasa (pink noise)
+      let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+      for (let i = 0; i < length; i++) {
+        const white = Math.random() * 2 - 1;
+        b0 = 0.99886 * b0 + white * 0.0555179;
+        b1 = 0.99332 * b1 + white * 0.0750759;
+        b2 = 0.96900 * b2 + white * 0.1538520;
+        b3 = 0.86650 * b3 + white * 0.3104856;
+        b4 = 0.55000 * b4 + white * 0.5329522;
+        b5 = -0.7616 * b5 - white * 0.0168980;
+        const pink = (b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362) * 0.11;
+        b6 = white * 0.115926;
+        data[i] = pink * 0.35;
+      }
+
+      // Capa 2: Crujidos y chasquidos de madera y fuego quemándose (pops/sparks)
+      const numPops = Math.floor(duration * 48); // ~48 chispas/crujidos por segundo
+      for (let p = 0; p < numPops; p++) {
+        const start = Math.floor(Math.random() * (length - 400));
+        const popLen = Math.floor(Math.random() * 150) + 40; // 1-3.5 ms
+        const amp = (Math.random() * 0.7 + 0.3) * (Math.random() > 0.82 ? 1.6 : 0.9);
+        for (let j = 0; j < popLen; j++) {
+          const env = Math.exp(-j / (popLen * 0.22));
+          data[start + j] += (Math.random() * 2 - 1) * amp * env * 0.75;
+        }
+      }
+
+      return buffer;
+    }
+
+    function analyzeImageMetrics(imgData) {
+      const d = imgData.data;
+      let rs = 0, gs = 0, bs = 0, edges = 0, warmPixels = 0;
+      const n = d.length / 4;
+      for (let i = 0; i < d.length; i += 4) {
+        const pr = d[i], pg = d[i + 1], pb = d[i + 2];
+        rs += pr; gs += pg; bs += pb;
+        if (i > 4 && Math.abs(pr - d[i - 4]) > 30) edges++;
+        if (isWarmRedYellow(pr, pg, pb)) warmPixels++;
+      }
+      const r = Math.round(rs / n), g = Math.round(gs / n), b = Math.round(bs / n);
+      const warmPercent = Math.round((warmPixels / (n || 1)) * 100);
+      const orangeInfo = isOrangeColor(r, g, b);
+      return {
+        rgb: { r, g, b }, hex: '#' + hex2(r) + hex2(g) + hex2(b),
+        brightness: Math.round(r * 0.299 + g * 0.587 + b * 0.114),
+        complexity: Math.min(100, Math.round((edges / (n || 1)) * 100)),
+        warmPercent,
+        isOrange: orangeInfo.isOrange,
+        orangeIntensity: orangeInfo.intensity
+      };
+    }
+    const fmtTime = (s) => String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(Math.floor(s % 60)).padStart(2, '0') + '.' + Math.floor((s % 1) * 10) + 's';
+
+
+    // ── Machine Learning: Modelo de Agrupamiento Tonal de Video (K-Means) ──
+    const MLVideoToneAnalyzer = {
+      k: 5,
+      clusters: [
+        { id: 0, name: 'Abisal / Azul Profundo', rgb: { r: 20, g: 60, b: 170 }, hex: '#143caa', hue: 224, sat: 0.88, val: 0.40, warmth: -0.6, freq: 130.81, mode: 'Dorian', note: 'C3' },
+        { id: 1, name: 'Atmospheric / Glacial Cyan', rgb: { r: 60, g: 200, b: 240 }, hex: '#3cc8f0', hue: 193, sat: 0.75, val: 0.85, warmth: -0.4, freq: 196.00, mode: 'Lidio', note: 'G3' },
+        { id: 2, name: 'Terrestre / Esmeralda', rgb: { r: 40, g: 160, b: 80 }, hex: '#28a050', hue: 140, sat: 0.75, val: 0.60, warmth: -0.1, freq: 164.81, mode: 'Pentatonic', note: 'E3' },
+        { id: 3, name: 'Solar / Ámbar Radiante', rgb: { r: 240, g: 180, b: 50 }, hex: '#f0b432', hue: 41, sat: 0.79, val: 0.90, warmth: 0.7, freq: 261.63, mode: 'Major', note: 'C4' },
+        { id: 4, name: 'Twilight / Fiery Crimson', rgb: { r: 210, g: 50, b: 70 }, hex: '#d23246', hue: 352, sat: 0.76, val: 0.75, warmth: 0.6, freq: 220.00, mode: 'Frigio', note: 'A3' }
+      ],
+      trained: false,
+      reset() {
+        this.trained = false;
+        const wrap = $('mlClusterPills');
+        if (wrap) wrap.innerHTML = '<span style="font-size:11px;color:var(--muted)">Load a video to train the tonal-clustering model.</span>';
+      },
+      train(frameList) {
+        if (!frameList || !frameList.length) return;
+        const data = frameList.map(f => {
+          const r = f.rgb.r / 255, g = f.rgb.g / 255, b = f.rgb.b / 255;
+          const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+          let h = 0;
+          if (d > 0) {
+            if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+            else if (max === g) h = ((b - r) / d + 2) / 6;
+            else h = ((r - g) / d + 4) / 6;
+          }
+          const s = max === 0 ? 0 : d / max;
+          const v = max;
+          const w = (f.rgb.r - f.rgb.b) / 255;
+          const c = (f.complexity || 30) / 100;
+          return { vec: [r, g, b, h, s, v, w, c], frame: f };
+        });
+
+        const k = Math.min(this.k, data.length);
+        if (k < 2) return;
+
+        // K-Means++
+        const centroids = [ [...data[Math.floor(Math.random() * data.length)].vec] ];
+        while (centroids.length < k) {
+          const dists = data.map(pt => {
+            let minD = Infinity;
+            for (const c of centroids) {
+              let sum = 0;
+              for (let j = 0; j < pt.vec.length; j++) sum += (pt.vec[j] - c[j]) ** 2;
+              if (sum < minD) minD = sum;
+            }
+            return minD;
+          });
+          const totalD = dists.reduce((a, b) => a + b, 0);
+          let rand = Math.random() * (totalD || 1);
+          let chosen = data[0].vec;
+          for (let i = 0; i < data.length; i++) {
+            rand -= dists[i];
+            if (rand <= 0) { chosen = data[i].vec; break; }
+          }
+          centroids.push([...chosen]);
+        }
+
+        // 15 iteraciones K-Means
+        for (let iter = 0; iter < 15; iter++) {
+          const clusters = Array.from({ length: k }, () => []);
+          for (const item of data) {
+            let bestIdx = 0, bestDist = Infinity;
+            for (let i = 0; i < k; i++) {
+              let sum = 0;
+              for (let j = 0; j < item.vec.length; j++) sum += (item.vec[j] - centroids[i][j]) ** 2;
+              if (sum < bestDist) { bestDist = sum; bestIdx = i; }
+            }
+            clusters[bestIdx].push(item.vec);
+          }
+          for (let i = 0; i < k; i++) {
+            if (!clusters[i].length) continue;
+            const mean = new Array(centroids[i].length).fill(0);
+            for (const vec of clusters[i]) {
+              for (let j = 0; j < vec.length; j++) mean[j] += vec[j];
+            }
+            for (let j = 0; j < mean.length; j++) centroids[i][j] = mean[j] / clusters[i].length;
+          }
+        }
+
+        // Escala celestial pentatonic: Do, Re, Mi, Sol, La (pura consonancia, cero disonancias)
+        const HARMONIC_PALETTE = [
+          { name: 'Abisal / Azul Profundo', mode: 'Dorian', note: 'C3', baseFreq: 130.81 },
+          { name: 'Atmospheric / Glacial Cyan', mode: 'Lidio', note: 'G3', baseFreq: 196.00 },
+          { name: 'Terrestre / Esmeralda', mode: 'Pentatonic', note: 'E3', baseFreq: 164.81 },
+          { name: 'Solar / Ámbar Radiante', mode: 'Major', note: 'C4', baseFreq: 261.63 },
+          { name: 'Twilight / Fiery Crimson', mode: 'Frigio', note: 'A3', baseFreq: 220.00 }
+        ];
+
+        centroids.sort((a, b) => a[3] - b[3]);
+
+        this.clusters = centroids.map((c, i) => {
+          const r = Math.round(c[0] * 255), g = Math.round(c[1] * 255), b = Math.round(c[2] * 255);
+          const hue = Math.round(c[3] * 360);
+          const sat = c[4];
+          const val = c[5];
+          const warmth = c[6];
+          const meta = HARMONIC_PALETTE[i % HARMONIC_PALETTE.length];
+          const hex = '#' + hex2(r) + hex2(g) + hex2(b);
+          return {
+            id: i,
+            name: meta.name,
+            mode: meta.mode,
+            note: meta.note,
+            freq: meta.baseFreq,
+            rgb: { r, g, b },
+            hex,
+            hue,
+            sat,
+            val,
+            warmth
+          };
+        });
+
+        this.trained = true;
+        this.renderPills();
+      },
+      renderPills(activeId = -1) {
+        const wrap = $('mlClusterPills');
+        if (!wrap) return;
+        wrap.textContent = '';
+        this.clusters.forEach(cl => {
+          const pill = document.createElement('span');
+          pill.className = 'ml-pill' + (cl.id === activeId ? ' active' : '');
+          pill.id = 'ml-pill-' + cl.id;
+          const dot = document.createElement('i');
+          dot.className = 'ml-pill-dot';
+          dot.style.background = cl.hex;
+          pill.append(dot, document.createTextNode(cl.name.split('/')[0].trim() + ' (' + cl.mode + ' · ' + cl.note + ')'));
+          wrap.appendChild(pill);
+        });
+      },
+      infer(metrics, pointerMetrics) {
+        let r = metrics.rgb.r, g = metrics.rgb.g, b = metrics.rgb.b;
+        let brightness = metrics.brightness;
+        if (pointerMetrics) {
+          r = Math.round(r * 0.65 + pointerMetrics.rgb.r * 0.35);
+          g = Math.round(g * 0.65 + pointerMetrics.rgb.g * 0.35);
+          b = Math.round(b * 0.65 + pointerMetrics.rgb.b * 0.35);
+          brightness = Math.round(brightness * 0.65 + pointerMetrics.brightness * 0.35);
+        }
+        const nr = r / 255, ng = g / 255, nb = b / 255;
+        const max = Math.max(nr, ng, nb), min = Math.min(nr, ng, nb), d = max - min;
+        let h = 0;
+        if (d > 0) {
+          if (max === nr) h = ((ng - nb) / d + (ng < nb ? 6 : 0)) / 6;
+          else if (max === ng) h = ((nb - nr) / d + 2) / 6;
+          else h = ((nr - ng) / d + 4) / 6;
+        }
+        const sat = max === 0 ? 0 : d / max;
+        const val = max;
+        const warmth = (r - b) / 255;
+
+        // Distancia euclídea normalizada a centroides
+        const dists = this.clusters.map(cl => {
+          const dh = Math.min(Math.abs(h - cl.hue / 360), 1 - Math.abs(h - cl.hue / 360));
+          const ds = sat - cl.sat;
+          const dv = val - cl.val;
+          const dw = warmth - cl.warmth;
+          return Math.sqrt(dh * dh * 4 + ds * ds + dv * dv + dw * dw);
+        });
+
+        // Softmax
+        const tau = 0.35;
+        const exps = dists.map(dist => Math.exp(-dist / tau));
+        const sumExp = exps.reduce((acc, v) => acc + v, 0) || 1;
+        const weights = exps.map(v => v / sumExp);
+
+        // Cluster líder
+        let maxW = -1, leadingIdx = 0;
+        weights.forEach((w, idx) => { if (w > maxW) { maxW = w; leadingIdx = idx; } });
+        const leading = this.clusters[leadingIdx];
+
+        // Frecuencia fundamental armónica: interpolada suavemente y cuantizada a escala pentatonic consonante
+        let rawFreq = 0;
+        for (let i = 0; i < this.clusters.length; i++) {
+          rawFreq += weights[i] * this.clusters[i].freq;
+        }
+        const targetFreq = quantizeToConsonant(rawFreq);
+
+        // Filtro cálido aterciopelado (corte suave entre 320 Hz y 1350 Hz, nunca chillón ni chirriante)
+        const targetCutoff = Math.max(320, Math.min(1350, 350 + 1000 * Math.pow(val, 1.35)));
+        const fifthGain = Math.max(0.14, Math.min(0.24, 0.16 + 0.08 * sat));
+        const subGain = Math.max(0.22, Math.min(0.34, 0.25 + 0.09 * (1 - val)));
+
+        return {
+          leading,
+          leadingIdx,
+          targetFreq,
+          targetCutoff,
+          fifthGain,
+          subGain,
+          rgb: { r, g, b },
+          hex: '#' + hex2(r) + hex2(g) + hex2(b),
+          hue: Math.round(h * 360),
+          brightness,
+          sat: Math.round(sat * 100),
+          weights
+        };
+      }
+    };
+
+    // ── Sintetizador de Pad Celestial Armónico y Progresivo (Ambient Soundscape) ──
+    const ContinuousDrone = window.ContinuousDrone = {
+      active: false,
+      nodesInitialized: false,
+      volume: 0.75,
+      oscRoot: null,
+      oscFifth: null,
+      oscOctave: null,
+      oscSub: null,
+      filter: null,
+      gainMaster: null,
+      gainRoot: null,
+      gainFifth: null,
+      gainOctave: null,
+      gainSub: null,
+      lfo: null,
+      lfoGain: null,
+      fireSource: null,
+      fireFilter: null,
+      gainFire: null,
+      sampleTimer: null,
+      lastInf: null,
+      lastMetrics: null,
+      pointerIsOrange: false,
+      initNodes() {
+        if (this.nodesInitialized) return;
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        try {
+          this.gainMaster = ctx.createGain();
+          this.gainMaster.gain.setValueAtTime(0.0001, ctx.currentTime);
+
+          // Filtro analógico cálido Butterworth (pendiente suave, sin resonancias agudas)
+          this.filter = ctx.createBiquadFilter();
+          this.filter.type = 'lowpass';
+          this.filter.frequency.setValueAtTime(700, ctx.currentTime);
+          this.filter.Q.setValueAtTime(0.707, ctx.currentTime);
+
+          // Ganancias balanceadas para un colchón sonoro relajante
+          this.gainRoot = ctx.createGain(); this.gainRoot.gain.setValueAtTime(0.32, ctx.currentTime);
+          this.gainFifth = ctx.createGain(); this.gainFifth.gain.setValueAtTime(0.20, ctx.currentTime);
+          this.gainOctave = ctx.createGain(); this.gainOctave.gain.setValueAtTime(0.12, ctx.currentTime);
+          this.gainSub = ctx.createGain(); this.gainSub.gain.setValueAtTime(0.26, ctx.currentTime);
+
+          // LFO de respiración orgánica sutil (ciclo suave de ~9 segundos, modulación ±6%)
+          this.lfo = ctx.createOscillator();
+          this.lfo.type = 'sine';
+          this.lfo.frequency.setValueAtTime(0.11, ctx.currentTime);
+          this.lfoGain = ctx.createGain();
+          this.lfoGain.gain.setValueAtTime(0.06, ctx.currentTime);
+          this.lfo.connect(this.lfoGain);
+
+          // Voces sinusoidales puras (cero distorsión, armonía celestial)
+          const base = 164.81;
+          this.oscRoot = ctx.createOscillator(); this.oscRoot.type = 'sine'; this.oscRoot.frequency.setValueAtTime(base, ctx.currentTime);
+          this.oscFifth = ctx.createOscillator(); this.oscFifth.type = 'sine'; this.oscFifth.frequency.setValueAtTime(base * 1.50, ctx.currentTime);
+          this.oscOctave = ctx.createOscillator(); this.oscOctave.type = 'sine'; this.oscOctave.frequency.setValueAtTime(base * 2.00, ctx.currentTime);
+          this.oscSub = ctx.createOscillator(); this.oscSub.type = 'sine'; this.oscSub.frequency.setValueAtTime(base * 0.50, ctx.currentTime);
+
+          this.oscRoot.connect(this.gainRoot).connect(this.filter);
+          this.oscFifth.connect(this.gainFifth).connect(this.filter);
+          this.oscOctave.connect(this.gainOctave).connect(this.filter);
+          this.oscSub.connect(this.gainSub).connect(this.filter);
+
+          this.filter.connect(this.gainMaster);
+          this.lfoGain.connect(this.gainMaster.gain);
+
+          this.gainMaster.connect(master);
+          this.gainMaster.connect(analyser);
+
+          // ── Generador de fuego quemándose (crujido, siseo y chispas de combustión) ──
+          const fireBuf = createFireNoiseBuffer(ctx, 3.0);
+          this.fireSource = ctx.createBufferSource();
+          this.fireSource.buffer = fireBuf;
+          this.fireSource.loop = true;
+
+          this.fireFilter = ctx.createBiquadFilter();
+          this.fireFilter.type = 'bandpass';
+          this.fireFilter.frequency.setValueAtTime(1400, ctx.currentTime);
+          this.fireFilter.Q.setValueAtTime(0.85, ctx.currentTime);
+
+          this.gainFire = ctx.createGain();
+          this.gainFire.gain.setValueAtTime(0.0001, ctx.currentTime);
+
+          this.fireSource.connect(this.fireFilter).connect(this.gainFire);
+          this.gainFire.connect(master);
+          this.gainFire.connect(analyser);
+
+          this.oscRoot.start();
+          this.oscFifth.start();
+          this.oscOctave.start();
+          this.oscSub.start();
+          this.lfo.start();
+          this.fireSource.start();
+          this.nodesInitialized = true;
+        } catch (e) {
+          console.warn('[ContinuousDrone] Node initialization error:', e);
+        }
+      },
+      start() {
+        if (this.active) return;
+        const toggle = $('sonicContinuousToggle');
+        if (toggle && !toggle.checked) return;
+        this.initNodes();
+        if (!this.nodesInitialized) return;
+        const ctx = ensureAudio();
+        if (!ctx) return;
+        if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+        this.active = true;
+        const now = ctx.currentTime;
+        const targetVol = Math.max(0.0001, Math.min(1, this.volume * 0.65));
+        this.gainMaster.gain.cancelScheduledValues(now);
+        this.gainMaster.gain.setValueAtTime(Math.max(0.0001, this.gainMaster.gain.value), now);
+        this.gainMaster.gain.linearRampToValueAtTime(targetVol, now + 1.4);
+
+        const badge = $('stageMlBadge');
+        if (badge) badge.hidden = false;
+
+        if (this.sampleTimer) clearInterval(this.sampleTimer);
+        this.sampleTimer = setInterval(() => this.tick(), 50);
+        this.tick();
+      },
+      stop() {
+        if (!this.active) return;
+        this.active = false;
+        if (this.sampleTimer) { clearInterval(this.sampleTimer); this.sampleTimer = null; }
+        const badge = $('stageMlBadge');
+        if (badge) badge.hidden = true;
+        if (this.gainMaster && actx) {
+          const now = actx.currentTime;
+          this.gainMaster.gain.cancelScheduledValues(now);
+          this.gainMaster.gain.setValueAtTime(this.gainMaster.gain.value, now);
+          this.gainMaster.gain.linearRampToValueAtTime(0.0001, now + 0.6);
+        }
+        if (this.gainFire && actx) {
+          this.gainFire.gain.cancelScheduledValues(actx.currentTime);
+          this.gainFire.gain.setValueAtTime(this.gainFire.gain.value, actx.currentTime);
+          this.gainFire.gain.linearRampToValueAtTime(0.0001, actx.currentTime + 0.3);
+        }
+      },
+      setVolume(val) {
+        this.volume = Math.max(0, Math.min(100, Number(val) || 0)) / 100;
+        const elVal = $('sonicContinuousVolVal'), elInput = $('sonicContinuousVol');
+        if (elVal) elVal.textContent = Math.round(this.volume * 100) + ' %';
+        if (elInput) elInput.value = Math.round(this.volume * 100);
+        if (this.active && this.gainMaster && actx) {
+          const targetVol = Math.max(0.0001, Math.min(1, this.volume * 0.65));
+          this.gainMaster.gain.setTargetAtTime(targetVol, actx.currentTime, 0.12);
+        }
+        return Math.round(this.volume * 100);
+      },
+      tick() {
+        if (!this.active || !this.nodesInitialized || !actx) return;
+        if (mainVideo.paused || mainVideo.ended || !mainVideo.videoWidth) return;
+
+        const canvas = $('analysisCanvas');
+        if (!canvas) return;
+        if (canvas.width !== 64) { canvas.width = 64; canvas.height = 36; }
+        const ctx2d = canvas.getContext('2d', { willReadFrequently: true });
+        try {
+          ctx2d.drawImage(mainVideo, 0, 0, 64, 36);
+          const imgData = ctx2d.getImageData(0, 0, 64, 36);
+          const metrics = analyzeImageMetrics(imgData);
+          this.lastMetrics = metrics;
+
+          // 1. Muestreo del puntero (mano o mouse) para detectar áreas de color naranja (fuego quemándose)
+          let pointerMetrics = null;
+          let pointerIsOrange = false;
+          let pointerFireIntensity = 0;
+          const tr = window.tracking;
+          if (tr && tr.currentVideoPixel && mainVideo.videoWidth && mainVideo.videoHeight) {
+            const px = Math.max(0, Math.min(63, Math.round((tr.currentVideoPixel.x / mainVideo.videoWidth) * 64)));
+            const py = Math.max(0, Math.min(35, Math.round((tr.currentVideoPixel.y / mainVideo.videoHeight) * 36)));
+            const sampleW = 5, sampleH = 5;
+            const sx = Math.max(0, px - 2), sy = Math.max(0, py - 2);
+            const pData = ctx2d.getImageData(sx, sy, Math.min(sampleW, 64 - sx), Math.min(sampleH, 36 - sy));
+            pointerMetrics = analyzeImageMetrics(pData);
+            if (pointerMetrics.isOrange) {
+              pointerIsOrange = true;
+              pointerFireIntensity = pointerMetrics.orangeIntensity;
+            }
+          }
+          this.pointerIsOrange = pointerIsOrange;
+
+          const inf = MLVideoToneAnalyzer.infer(metrics, pointerMetrics);
+          this.lastInf = inf;
+
+          const t = actx.currentTime;
+
+          // 2. Modulación del volumen general según el incremento de tonos amarillos y rojos
+          // A mayor porcentaje de colores cálidos (rojo/amarillo), mayor presencia y volumen del sonido
+          const baseVol = Math.max(0.0001, Math.min(1, this.volume * 0.65));
+          const warmFactor = 0.35 + (metrics.warmPercent / 100) * 1.05; // 0% cálido -> 0.35x, 100% cálido -> 1.40x
+          const dynamicVol = baseVol * warmFactor;
+          this.gainMaster.gain.setTargetAtTime(dynamicVol, t, 0.20);
+
+          // 3. Modulación del sonido de fuego (quemándose) cuando el puntero está sobre un área naranja
+          if (this.gainFire && actx) {
+            if (pointerIsOrange) {
+              // Crujido y siseo de fuego ardiendo bajo la punta del dedo
+              const targetFireVol = Math.min(0.85, 0.25 + 0.55 * pointerFireIntensity);
+              this.gainFire.gain.setTargetAtTime(targetFireVol, t, 0.08); // respuesta inmediata de ignición
+              this.fireFilter.frequency.setTargetAtTime(1300 + pointerFireIntensity * 700, t, 0.12);
+            } else {
+              // Fuera de área naranja: apagado suave del fuego
+              this.gainFire.gain.setTargetAtTime(0.0001, t, 0.15);
+            }
+          }
+
+          // 4. Modulación de frecuencias melódicas consonantes (portamento suave y armónico)
+          this.oscRoot.frequency.setTargetAtTime(inf.targetFreq, t, 0.36);
+          this.oscFifth.frequency.setTargetAtTime(inf.targetFreq * 1.50, t, 0.36);
+          this.oscOctave.frequency.setTargetAtTime(inf.targetFreq * 2.00, t, 0.38);
+          this.oscSub.frequency.setTargetAtTime(inf.targetFreq * 0.50, t, 0.40);
+
+          // Filtro cálido que se abre suavemente al aumentar los tonos cálidos
+          const filterFreq = inf.targetCutoff + (metrics.warmPercent * 4.5);
+          this.filter.frequency.setTargetAtTime(filterFreq, t, 0.28);
+          this.filter.Q.setTargetAtTime(0.707, t, 0.28);
+
+          this.gainFifth.gain.setTargetAtTime(inf.fifthGain, t, 0.25);
+          this.gainSub.gain.setTargetAtTime(inf.subGain, t, 0.25);
+
+          // 5. Interfaz HUD con indicadores de calidez y combustión
+          const dot = $('stageMlDot'), text = $('stageMlText');
+          if (dot) {
+            if (pointerIsOrange) {
+              dot.style.backgroundColor = '#ff6600';
+              dot.style.boxShadow = '0 0 16px #ff6600, 0 0 30px #ff2200';
+            } else {
+              dot.style.backgroundColor = inf.hex;
+              dot.style.boxShadow = '0 0 10px ' + inf.hex;
+            }
+          }
+          if (text) {
+            const fireBadge = pointerIsOrange ? ' · 🔥 FIERY ZONE! BURNING' : '';
+            text.textContent = 'ML: ' + inf.leading.name.split('/')[0].trim() + ' (' + inf.leading.mode + ') · ' + inf.targetFreq.toFixed(1) + ' Hz · Rojos/Amarillos: ' + metrics.warmPercent + '%' + fireBadge;
+          }
+
+          MLVideoToneAnalyzer.renderPills(inf.leadingIdx);
+          kickScope(0.5);
+        } catch (e) {
+          // Ignorar leves interrupciones
+        }
+      },
+      getCurrentToneInfo() {
+        if (!this.lastInf) return null;
+        return {
+          cluster: this.lastInf.leading.name,
+          mode: this.lastInf.leading.mode,
+          freq: this.lastInf.targetFreq.toFixed(1),
+          hue: this.lastInf.hue,
+          light: Math.round((this.lastInf.brightness / 255) * 100),
+          hex: this.lastInf.hex,
+          warmPercent: this.lastMetrics ? this.lastMetrics.warmPercent : 0,
+          pointerBurning: !!this.pointerIsOrange
+        };
+      }
+    };
+
+    // ── Extracción de fotogramas (con un <video> oculto) ──
+    function whenReady(v) {
+      return new Promise((resolve, reject) => {
+        if (v.readyState >= 1 && v.duration) return resolve();
+        const clean = () => { v.removeEventListener('loadedmetadata', ok); v.removeEventListener('error', bad); clearTimeout(timer); };
+        const ok = () => { clean(); resolve(); };
+        const bad = () => { clean(); reject(new Error('Could not read video to extract frames.')); };
+        const timer = setTimeout(() => { clean(); reject(new Error('Timed out while reading the video.')); }, 15000);
+        v.addEventListener('loadedmetadata', ok);
+        v.addEventListener('error', bad);
+      });
+    }
+    function seekFrame(v, time) {
+      return new Promise((resolve) => {
+        let done = false;
+        const finish = () => {
+          if (done) return;
+          done = true; v.removeEventListener('seeked', onSeeked); clearTimeout(safety);
+          // si el cuadro aún no está decodificado, esperar un poco más
+          let waited = 0;
+          (function check() { if (v.readyState >= 2 || waited >= 400) resolve(); else { waited += 40; setTimeout(check, 40); } })();
+        };
+        const onSeeked = () => setTimeout(finish, 40);
+        v.addEventListener('seeked', onSeeked, { once: true });
+        const safety = setTimeout(finish, 600);
+        try { v.currentTime = time; } catch { finish(); }
+      });
+    }
+
+    function setStatus(msg) { $('sonicStatus').textContent = msg; }
+    function setBadge(text, active) { $('sonicBadge').textContent = text; $('sonicBadge').dataset.active = String(!!active); }
+    function updateButtons() {
+      const has = sonic.frames.length > 0 && !sonic.busy;
+      ['sonicPlay', 'sonicPrev', 'sonicNext', 'sonicReport'].forEach((id) => { $(id).disabled = !has; });
+      $('sonicReprocess').disabled = !state.videoURL || sonic.busy;
+    }
+
+    async function extract(count) {
+      if (!state.videoURL) { setStatus('Load a video first.'); return false; }
+      count = Math.max(4, Math.min(24, Math.round(Number(count) || Number($('sonicCount').value) || 8)));
+      $('sonicCount').value = count; $('sonicCountVal').textContent = count;
+      const run = ++sonic.runId;
+      stopJukebox();
+      sonic.busy = true; sonic.frames = []; sonic.lastSyncIdx = -1;
+      renderReel(); resetPreview(); updateButtons();
+      $('sonicProgressWrap').hidden = false; $('sonicProgress').style.width = '0%';
+      setBadge('Extrayendo…', true);
+
+      const vid = document.createElement('video');
+      vid.muted = true; vid.preload = 'auto'; vid.playsInline = true;
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      const fileName = state.file ? state.file.name : 'video';
+      try {
+        vid.src = state.videoURL;
+        await whenReady(vid);
+        const duration = vid.duration;
+        if (!duration || !isFinite(duration) || duration <= 0) throw new Error('Could not determine the video duration.');
+        const w = 320, h = Math.round((w * (vid.videoHeight || 180)) / (vid.videoWidth || 320)) || 180;
+        canvas.width = w; canvas.height = h;
+        const start = Math.min(0.08, duration * 0.02), end = Math.max(duration - 0.08, duration * 0.98);
+        const step = count > 1 ? (end - start) / (count - 1) : 0;
+        const frames = [];
+        for (let i = 0; i < count; i++) {
+          if (run !== sonic.runId) return false; // se cargó otro video o se reprocesó
+          const t = Math.max(0.01, Math.min(count === 1 ? duration / 2 : start + i * step, duration - 0.02));
+          setStatus('Extracting frame ' + (i + 1) + ' of ' + count + ' (' + t.toFixed(1) + ' s)…');
+          $('sonicProgress').style.width = Math.round((i / count) * 100) + '%';
+          await seekFrame(vid, t);
+          let m = { hex: '#38bdf8', rgb: { r: 56, g: 189, b: 248 }, brightness: 128, complexity: 30 }, thumb = '';
+          try {
+            ctx.drawImage(vid, 0, 0, w, h);
+            m = analyzeImageMetrics(ctx.getImageData(0, 0, w, h));
+            thumb = canvas.toDataURL('image/jpeg', 0.85);
+          } catch (e) { console.warn('[Sonification] Could Not Analyze Frame', i, e); }
+          frames.push({
+            id: i, time: t, timeFormatted: fmtTime(t), thumbUrl: thumb, dominantColor: m.hex, rgb: m.rgb,
+            brightness: m.brightness, complexity: m.complexity, temperature: m.rgb.r > m.rgb.b ? 'Warm' : 'Cold'
+          });
+        }
+        if (run !== sonic.runId) return false;
+        sonic.frames = frames; sonic.index = 0; sonic.sourceName = fileName;
+        sonic.busy = false;
+        $('sonicProgress').style.width = '100%';
+        setTimeout(() => { if (run === sonic.runId) $('sonicProgressWrap').hidden = true; }, 600);
+        setBadge(frames.length + ' frames', true);
+        setStatus(frames.length + ' frames from “' + fileName + '” converted into music. Select “Play Sonification” or play the video.');
+        renderReel(); selectFrame(0, false); updateButtons();
+        MLVideoToneAnalyzer.train(frames);
+        if (typeof announce === 'function') announce('Extracted ' + frames.length + ' frames and converted them into musical notes.');
+        window.dispatchEvent(new CustomEvent('sonic:ready', { detail: { count: frames.length, name: fileName } }));
+        return true;
+      } catch (err) {
+        if (run !== sonic.runId) return false;
+        console.error('[Sonification]', err);
+        sonic.busy = false;
+        $('sonicProgressWrap').hidden = true;
+        setBadge('Error', false);
+        setStatus('Could Not Extract Frames: ' + err.message);
+        updateButtons();
+        return false;
+      } finally {
+        try { vid.removeAttribute('src'); vid.load(); } catch {}
+      }
+    }
+
+    // ── Interfaz del carrete y del fotograma activo ──
+    function resetPreview() {
+      $('sonicPreview').hidden = true; $('sonicPreviewEmpty').hidden = false; $('sonicCaption').hidden = true;
+      $('mapColor').textContent = $('mapTexture').textContent = $('mapLight').textContent = $('mapNote').textContent = '—';
+      $('sonicSwatch').style.background = '#38bdf8';
+    }
+    function renderReel() {
+      const reel = $('sonicReel');
+      reel.setAttribute('role', 'group');
+      reel.textContent = '';
+      sonic.frames.forEach((f, i) => {
+        const b = document.createElement('button');
+        b.type = 'button'; b.className = 'frame-card'; b.id = 'frame-card-' + i;
+        b.setAttribute('aria-label', 'Fotograma ' + (i + 1) + ' de ' + sonic.frames.length + ', ' + f.timeFormatted + ', note ' + frameToPitch(f));
+        const img = document.createElement('img'); img.alt = ''; img.src = f.thumbUrl;
+        const meta = document.createElement('span');
+        const a = document.createElement('b'); a.textContent = '#' + (i + 1); a.style.color = f.dominantColor;
+        const c = document.createElement('i'); c.textContent = f.timeFormatted; c.style.fontStyle = 'normal';
+        meta.append(a, c);
+        b.append(img, meta);
+        b.addEventListener('click', () => goToFrame(i));
+        reel.appendChild(b);
+      });
+    }
+    function selectFrame(i, sound) {
+      const f = sonic.frames[i];
+      if (!f) return;
+      sonic.index = i;
+      sonic.frames.forEach((_, k) => { const el = $('frame-card-' + k); if (el) el.setAttribute('aria-current', String(k === i)); });
+      const card = $('frame-card-' + i), reel = $('sonicReel');
+      if (card) reel.scrollTo({ left: card.offsetLeft - reel.clientWidth / 2 + card.clientWidth / 2, behavior: 'smooth' });
+      const note = frameToPitch(f);
+      $('sonicPreview').src = f.thumbUrl; $('sonicPreview').hidden = false; $('sonicPreviewEmpty').hidden = true;
+      $('sonicCaption').textContent = 'Fotograma ' + (i + 1) + '/' + sonic.frames.length + ' · ' + f.timeFormatted; $('sonicCaption').hidden = false;
+      $('sonicSwatch').style.background = f.dominantColor;
+      $('mapColor').textContent = 'RGB(' + f.rgb.r + ', ' + f.rgb.g + ', ' + f.rgb.b + ') ' + f.dominantColor + ' · ' + f.temperature;
+      $('mapTexture').textContent = f.complexity + '% edges → ' + (f.complexity > 40 ? 'fast arpeggio' : 'acorde sostenido');
+      $('mapLight').textContent = f.brightness + '/255 → tono fundamental ' + note;
+      $('mapNote').textContent = note + ' (' + f.temperature + ')';
+      if (sound) playFrameTone(f);
+    }
+    function goToFrame(i) {
+      i = Math.max(0, Math.min(sonic.frames.length - 1, i));
+      if (!sonic.frames[i]) return;
+      sonic.lastSyncIdx = i;
+      selectFrame(i, true);
+      if (state.videoReady) seekTo(sonic.frames[i].time);
+    }
+
+    // ── Reproducción tipo jukebox ──
+    function setPlayUI() {
+      $('sonicPlay').textContent = sonic.playing ? 'Pause Sonification' : 'Play Sonification';
+    }
+    function startJukebox() {
+      if (!sonic.frames.length || sonic.busy) return false;
+      ensureAudio();
+      stopJukebox(true);
+      sonic.playing = true; setPlayUI();
+      const tick = () => { const i = sonic.index; selectFrame(i, true); sonic.index = (i + 1) % sonic.frames.length; };
+      tick();
+      sonic.timer = setInterval(tick, (60 / sonic.bpm) * 1000);
+      return true;
+    }
+    function stopJukebox(keepFlag) {
+      if (sonic.timer) clearInterval(sonic.timer);
+      sonic.timer = null;
+      if (!keepFlag) { sonic.playing = false; setPlayUI(); }
+    }
+    function toggleJukebox() { return sonic.playing ? (stopJukebox(), false) : startJukebox(); }
+
+    // ── Informe ──
+    function downloadReport() {
+      if (!sonic.frames.length) return false;
+      const data = {
+        fuente: sonic.sourceName, generado: new Date().toISOString(), escala: sonic.scale, bpm: sonic.bpm,
+        fotogramas: sonic.frames.map((f, i) => ({
+          n: i + 1, tiempo: f.timeFormatted, color: f.dominantColor, rgb: f.rgb, brillo: f.brightness,
+          bordes_pct: f.complexity, temperatura: f.temperature, nota: frameToPitch(f)
+        }))
+      };
+      const url = URL.createObjectURL(new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' }));
+      const a = document.createElement('a');
+      a.href = url; a.download = 'informe_sonificacion.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      return true;
+    }
+
+    // ── Controles ──
+    function setBpm(v) {
+      sonic.bpm = Math.max(40, Math.min(180, Math.round(Number(v) || 90)));
+      $('sonicBpm').value = sonic.bpm; $('sonicBpmVal').textContent = sonic.bpm + ' BPM';
+      if (sonic.playing) startJukebox();
+      return sonic.bpm;
+    }
+    function setVolume(v) {
+      sonic.volDb = Math.max(-30, Math.min(0, Math.round(Number(v)))); if (!isFinite(sonic.volDb)) sonic.volDb = -6;
+      $('sonicVol').value = sonic.volDb; $('sonicVolVal').textContent = sonic.volDb + ' dB';
+      if (master) master.gain.value = dbToGain(sonic.volDb);
+      return sonic.volDb;
+    }
+    function setScale(v) {
+      if (v !== 'auto' && !SCALES[v]) return false;
+      sonic.scale = v; $('sonicScale').value = v;
+      if (sonic.frames.length) { renderReel(); selectFrame(sonic.index, false); }
+      return true;
+    }
+
+    $('sonicPlay').addEventListener('click', toggleJukebox);
+    $('sonicPrev').addEventListener('click', () => goToFrame((sonic.index - 1 + sonic.frames.length) % sonic.frames.length));
+    $('sonicNext').addEventListener('click', () => goToFrame((sonic.index + 1) % sonic.frames.length));
+    $('sonicReprocess').addEventListener('click', () => extract());
+    $('sonicReport').addEventListener('click', downloadReport);
+    $('sonicCount').addEventListener('input', (e) => { $('sonicCountVal').textContent = e.target.value; });
+    $('sonicCount').addEventListener('change', () => { if (state.videoURL) extract(); });
+    $('sonicBpm').addEventListener('input', (e) => setBpm(e.target.value));
+    $('sonicVol').addEventListener('input', (e) => setVolume(e.target.value));
+    $('sonicScale').addEventListener('change', (e) => setScale(e.target.value));
+    $('sonicContinuousToggle').addEventListener('change', (e) => {
+      const isExp = window.state && window.state.experience && !mainVideo.paused;
+      if (e.target.checked && isExp) ContinuousDrone.start();
+      else if (!e.target.checked) ContinuousDrone.stop();
+    });
+    $('sonicContinuousVol').addEventListener('input', (e) => ContinuousDrone.setVolume(e.target.value));
+
+    window.addEventListener('app:ui-update', (e) => {
+      const exp = e.detail && e.detail.experience;
+      const playing = e.detail && e.detail.playing;
+      const toggle = $('sonicContinuousToggle');
+      if (exp && playing && toggle && toggle.checked) {
+        ContinuousDrone.start();
+      } else if (!exp || !playing) {
+        ContinuousDrone.stop();
+      }
+    });
+
+
+    // ── Enlace con el video principal ──
+    mainVideo.addEventListener('loadeddata', () => { if (state.file && state.videoURL) extract(); });
+    mainVideo.addEventListener('emptied', () => {
+      if (state.file) return; // se está cargando otro video: lo gestiona loadeddata
+      sonic.runId++; sonic.busy = false; sonic.frames = []; stopJukebox();
+      renderReel(); resetPreview(); updateButtons();
+      $('sonicProgressWrap').hidden = true;
+      setBadge('No Video', false);
+      setStatus('Load a video: its frames will be extracted and converted into music automatically.');
+    });
+    function indexAt(t) { let idx = 0; for (let i = 0; i < sonic.frames.length; i++) { if (sonic.frames[i].time <= t + 0.05) idx = i; else break; } return idx; }
+    mainVideo.addEventListener('play', () => { sonic.lastSyncIdx = -1; });
+    mainVideo.addEventListener('timeupdate', () => {
+      if (!sonic.frames.length || sonic.playing || mainVideo.paused || !$('sonicSync').checked) return;
+      const idx = indexAt(mainVideo.currentTime);
+      if (idx !== sonic.lastSyncIdx) { sonic.lastSyncIdx = idx; selectFrame(idx, true); }
+    });
+    mainVideo.addEventListener('seeked', () => {
+      if (!sonic.frames.length || sonic.playing || !mainVideo.paused) return;
+      const idx = indexAt(mainVideo.currentTime);
+      sonic.lastSyncIdx = idx; selectFrame(idx, false);
+    });
+
+    drawScope();
+    updateButtons();
+
+    // API para el asistente LYDIA
+    window.SONIC = {
+      extract, goToFrame, setBpm, setVolume, setScale, downloadReport,
+      play: () => startJukebox(), stop: () => stopJukebox(), toggle: toggleJukebox,
+      next: () => goToFrame((sonic.index + 1) % Math.max(1, sonic.frames.length)),
+      prev: () => goToFrame((sonic.index - 1 + sonic.frames.length) % Math.max(1, sonic.frames.length)),
+      setSync: (on) => { $('sonicSync').checked = !!on; },
+      scaleLabel: (k) => SCALE_LABELS[k] || k,
+      startContinuous: () => ContinuousDrone.start(),
+      stopContinuous: () => ContinuousDrone.stop(),
+      setContinuousVolume: (v) => ContinuousDrone.setVolume(v),
+      getToneInfo: () => ContinuousDrone.getCurrentToneInfo(),
+      mlClusters: () => MLVideoToneAnalyzer.clusters,
+      info: () => ({
+        fotogramas: sonic.frames.length, extrayendo: sonic.busy, sonando: sonic.playing, escala: sonic.scale,
+        bpm: sonic.bpm, volumenDb: sonic.volDb, fotogramaActivo: sonic.frames.length ? sonic.index + 1 : null,
+        notaActiva: sonic.frames[sonic.index] ? frameToPitch(sonic.frames[sonic.index]) : null,
+        sincronizarConVideo: $('sonicSync').checked
+      })
+    };
+  })();
+  </script>
+
+<script>
+(function(){
+'use strict';
+const byId=id=>document.getElementById(id);
+const root=byId('thermalWorld'),can=byId('tw-globe'),ctx=can.getContext('2d');
+let W=0,H=0,rot=-0.35,tilt=-0.12,zoom=1,auto=true,pressed=false,travel=0,lastX=0,lastY=0;
+let position=null,heat=0,active=false,ac=null,master=null,fireSrc=null,fireFilter=null,fireGain=null,musicTimer=null,step=0,region='';
+let soundLayers={},wildlifeTimer=null,lastVisualZone='',volumeLevel=.86,noiseBurstBuffer=null,animalCounter=0;
+let directPosition=null,lastDirect=0,prevHand=null,lastHandTime=0,booting=false,handDetected=false;
+let lastThumb=null,thumbLastAt=0,thumbIsActive=false;
+const names=['Do','Do♯','Re','Re♯','Mi','Fa','Fa♯','Sol','Sol♯','La','La♯','Si'];
+const countries=[['Peru',-75,-10,'Quena y cuerdas andinas',[0,3,5,7,10]],['Mexico',-102,23,'Cuerdas y ritmos mexicanos',[0,2,4,7,9]],['Brasil',-52,-11,'Brazilian Percussion',[0,2,4,7,9]],['Argentina',-64,-35,'Tango Atmosphere',[0,2,3,7,9]],['Spain',-4,40,'Spanish Guitar',[0,2,3,5,7,9]],['Egipto',30,27,'North African Flutes',[0,1,4,5,7,8]],['India',78,22,'Indian Strings',[0,2,3,7,8,11]],['China',105,35,'Cuerdas chinas',[0,2,4,7,9]],['Japan',138,37,'Flauta japonesa',[0,2,5,7,9]],['Australia',135,-25,'Oceanian Soundscape',[0,2,5,7,10]],['Canada',-105,55,'Folk Strings',[0,2,4,7,9]],['Marruecos',-7,32,'Cuerdas del Magreb',[0,1,4,5,7,8]]];
+const landPolys=[
+[[-168,70],[-140,73],[-123,68],[-107,73],[-83,65],[-63,50],[-82,10],[-97,17],[-110,25],[-127,39],[-150,58]],
+[[-81,12],[-65,11],[-48,1],[-35,-9],[-42,-24],[-54,-37],[-68,-55],[-75,-39],[-79,-18]],
+[[-12,36],[0,36],[14,42],[27,39],[41,51],[30,65],[10,71],[-10,59]],
+[[-17,36],[8,38],[35,31],[50,12],[41,-12],[28,-34],[15,-35],[-5,-22],[-16,5]],
+[[30,34],[42,53],[62,69],[100,76],[145,64],[168,50],[145,31],[120,18],[105,4],[80,8],[64,24],[48,29]],
+[[112,-12],[130,-11],[153,-21],[153,-39],[135,-44],[114,-29]]
+];
+function hash(a,b){const n=Math.sin(a*127.1+b*311.7)*43758.5453;return n-Math.floor(n)}
+function inside(lon,lat,poly){let yes=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a[1]>lat)!==(b[1]>lat)){const x=(b[0]-a[0])*(lat-a[1])/(b[1]-a[1])+a[0];if(lon<x)yes=!yes}}return yes}
+function land(lon,lat){return landPolys.some(p=>inside(lon,lat,p))||Math.abs(lat)>80}
+function thermal(lon,lat){let v=(Math.sin(lon*.042+lat*.046)+Math.cos(lon*.019-lat*.082)+2)*.22+hash(Math.floor(lon/11),Math.floor(lat/11))*.12;return Math.max(0,Math.min(1,v))}
+function color(v,isLand){const stops=[[13,46,152],[9,141,229],[0,209,208],[35,192,76],[239,215,36],[251,118,25],[224,31,16]];let j=Math.min(stops.length-2,Math.floor(v*(stops.length-1))),t=v*(stops.length-1)-j;const rgb=stops[j].map((n,i)=>Math.round(n*(1-t)+stops[j+1][i]*t));let alpha=isLand?1:.78;return `rgba(${rgb.join(',')},${alpha})`}
+function R(){return Math.min(W*.37,H*.43)*zoom}
+function project(lon,lat){const a=lat*Math.PI/180,b=lon*Math.PI/180,x=Math.cos(a)*Math.sin(b),y=Math.sin(a),z=Math.cos(a)*Math.cos(b);const X=x*Math.cos(rot)+z*Math.sin(rot),Z=z*Math.cos(rot)-x*Math.sin(rot),Y=y*Math.cos(tilt)-Z*Math.sin(tilt),ZZ=y*Math.sin(tilt)+Z*Math.cos(tilt);return{x:X,y:-Y,z:ZZ}}
+function inverse(x,y){const r=R(),sx=(x-W/2)/r,sy=-(y-H/2)/r;if(sx*sx+sy*sy>=1)return null;let z=Math.sqrt(1-sx*sx-sy*sy);const Y=sy*Math.cos(tilt)+z*Math.sin(tilt),Z=z*Math.cos(tilt)-sy*Math.sin(tilt);const X=sx*Math.cos(rot)-Z*Math.sin(rot),ZZ=Z*Math.cos(rot)+sx*Math.sin(rot);return{lon:Math.atan2(X,ZZ)*180/Math.PI,lat:Math.asin(Math.max(-1,Math.min(1,Y)))*180/Math.PI,x,y}}
+function size(){let rect=can.getBoundingClientRect(),d=Math.min(devicePixelRatio||1,1.5);W=rect.width;H=rect.height;can.width=Math.round(W*d);can.height=Math.round(H*d);ctx.setTransform(d,0,0,d,0,0)}
+function country(lon,lat){let winner=null,best=999;for(const p of countries){let dx=((lon-p[1]+540)%360)-180;let distance=Math.hypot(dx*Math.cos(lat*Math.PI/180),lat-p[2]);if(distance<best){winner=p;best=distance}}return best<18?winner:null}
+function makeNoiseBuffer(seconds,mode){
+  const len=Math.floor(ac.sampleRate*seconds),buffer=ac.createBuffer(1,len,ac.sampleRate),dst=buffer.getChannelData(0);
+  let smooth=0,slow=0,last=0;
+  for(let i=0;i<len;i++){
+    const white=Math.random()*2-1;
+    smooth+=.017*(white-smooth);slow+=.001*(white-slow);
+    if(mode==='water') dst[i]=Math.tanh((smooth*5+slow*7)*.7);
+    else if(mode==='jungle') dst[i]=Math.tanh((smooth*4+white*.11)*.65);
+    else if(mode==='desert') dst[i]=Math.tanh((smooth*3+slow*6)*.75);
+    else {last=last*.87+white*.13;dst[i]=last*.7+(Math.random()<.0012?white*.8:0)}
+  }
+  return buffer;
+}
+function makeLayer(kind,filterType,hz,level){
+  const src=ac.createBufferSource();src.buffer=makeNoiseBuffer(4,kind);src.loop=true;
+  const filter=ac.createBiquadFilter();filter.type=filterType;filter.frequency.value=hz;
+  const gain=ac.createGain();gain.gain.value=0;src.connect(filter);filter.connect(gain);gain.connect(master);src.start();
+  soundLayers[kind]={src,filter,gain,level};
+}
+function initAudio(){
+ if(!ac){const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+  ac=new AC();master=ac.createGain();master.gain.value=volumeLevel;
+  // Compresor suave para realzar el paisaje sin picos digitales bruscos.
+  const compressor=ac.createDynamicsCompressor();compressor.threshold.value=-22;compressor.knee.value=20;compressor.ratio.value=4;compressor.attack.value=.012;compressor.release.value=.22;
+  master.connect(compressor);compressor.connect(ac.destination);
+  makeLayer('water','lowpass',1050,.94);
+  makeLayer('jungle','bandpass',1900,.57);
+  makeLayer('desert','lowpass',920,.64);
+  makeLayer('fire','highpass',340,.91);
+  fireGain=soundLayers.fire.gain;fireFilter=soundLayers.fire.filter;
+ }
+ if(ac.state==='suspended')ac.resume().catch(()=>{});
+ return true;
+}
+const environments=[
+ {key:'water',name:'🌊 Ocean',detail:'Powerful waves, seagulls, and marine wildlife',color:'#078fe7',instrument:'Heavy surf + seagulls + marine calls'},
+ {key:'jungle',name:'🌿 Rainforest',detail:'Monkeys, big cats, tropical birds, and insects',color:'#24cd55',instrument:'Monkeys + big cat roars + birds + insects'},
+ {key:'desert',name:'🏜️ Desert',detail:'Dry wind, sand, and dunes',color:'#ff9b24',instrument:'Wind + sand + whistling'},
+ {key:'fire',name:'🔥 Intense Fire',detail:'Powerful flames, embers, and intense crackling',color:'#ed3417',instrument:'Blazing flames + roaring fire + sparks'}
+];
+function environmentWeights(value){
+ const centers=[.14,.46,.70,.91],spread=[.26,.24,.19,.18];
+ const w=centers.map((c,i)=>Math.max(0,1-Math.abs(value-c)/spread[i]));
+ const total=w.reduce((a,b)=>a+b,0);
+ if(total<.0001){w[value<.3?0:3]=1;return w;}
+ return w.map(v=>v/total);
+}
+function environmentFor(value){const ws=environmentWeights(value);return environments[ws.indexOf(Math.max(...ws))]}
+function setAtmospheres(value,enabled){
+ if(!ac)return;
+ const ws=enabled?environmentWeights(value):[0,0,0,0],now=ac.currentTime;
+ environments.forEach((env,i)=>{
+   const layer=soundLayers[env.key];if(!layer)return;
+   const intensity=.60+Math.min(1,Math.max(0,value))*.40;
+   layer.gain.gain.setTargetAtTime(ws[i]*layer.level*intensity,now,.23);
+ });
+ const swell=Math.sin(performance.now()*.0013);
+ soundLayers.water.filter.frequency.setTargetAtTime(500+value*1250+swell*320,now,.20);
+ soundLayers.jungle.filter.frequency.setTargetAtTime(930+value*1700,now,.25);
+ soundLayers.desert.filter.frequency.setTargetAtTime(390+value*1400,now,.25);
+ soundLayers.fire.filter.frequency.setTargetAtTime(550+value*2550,now,.16);
+}
+// Capas acústicas originales generadas en vivo, sin archivos externos.
+// Los animales son aproximaciones sonoras; no se presentan como grabaciones reales.
+function soundEvent(freq,endFreq,duration,level,wave='sine',offset=0,filterHz=0){
+ if(!ac||!active)return;
+ const now=ac.currentTime+offset,osc=ac.createOscillator(),gain=ac.createGain();
+ osc.type=wave;osc.frequency.setValueAtTime(Math.max(35,freq),now);
+ osc.frequency.exponentialRampToValueAtTime(Math.max(35,endFreq),now+duration*.82);
+ gain.gain.setValueAtTime(.0001,now);
+ gain.gain.exponentialRampToValueAtTime(Math.max(.0002,level),now+Math.min(.1,duration*.26));
+ gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+ let tail=osc;if(filterHz){const f=ac.createBiquadFilter();f.type='lowpass';f.frequency.value=filterHz;osc.connect(f);tail=f;}
+ tail.connect(gain);gain.connect(master);osc.start(now);osc.stop(now+duration+.02);
+}
+function texturedBurst(duration,volume,filterFrequency,offset=0){
+ if(!ac||!active)return;
+ if(!noiseBurstBuffer)noiseBurstBuffer=makeNoiseBuffer(2,'fire');
+ const now=ac.currentTime+offset,src=ac.createBufferSource(),f=ac.createBiquadFilter(),gain=ac.createGain();
+ src.buffer=noiseBurstBuffer;f.type='bandpass';f.frequency.value=filterFrequency;f.Q.value=.65;
+ gain.gain.setValueAtTime(.0001,now);
+ gain.gain.exponentialRampToValueAtTime(volume,now+Math.min(.07,duration*.27));
+ gain.gain.exponentialRampToValueAtTime(.0001,now+duration);
+ src.connect(f);f.connect(gain);gain.connect(master);src.start(now);src.stop(now+duration+.02);
+}
+function wildlifeAccent(){
+ if(!active||!position||!ac)return;
+ const env=environmentFor(heat).key;
+ const power=.7+.3*heat,choice=animalCounter++%9;
+ if(env==='water'){
+   // Una ola más cercana rompe en espuma; gaviotas y cantos submarinos alternados.
+   if(choice%2===0)texturedBurst(1.3,.18*power,460+Math.random()*450);
+   if(choice%3===0){ // chillido ascendente-descendente de gaviota
+     soundEvent(720,1340,.35,.16*power,'sawtooth',.03,2300);
+     soundEvent(1330,640,.51,.13*power,'triangle',.40,2400);
+     soundEvent(620,980,.26,.07*power,'sine',.85);
+   }else if(choice%4===0){ // silbidos de mamíferos marinos
+     soundEvent(410,950,.69,.10*power,'sine',0);
+     soundEvent(1000,430,.7,.085*power,'sine',.68);
+   }else{ // gotas y burbujas
+     soundEvent(280+Math.random()*270,120,.17,.075*power,'sine');
+   }
+ }else if(env==='jungle'){
+   if(choice%3===0){ // vocalización grave de mono
+     soundEvent(200,325,.32,.17*power,'sawtooth',0,950);
+     soundEvent(320,185,.34,.16*power,'sawtooth',.36,850);
+     soundEvent(210,300,.31,.13*power,'triangle',.75,900);
+   }else if(choice%5===0){ // rugido estilizado de felino, con gruñido áspero
+     texturedBurst(1.0,.20*power,240);
+     soundEvent(135,78,1.13,.22*power,'sawtooth',0,650);
+     soundEvent(104,67,.85,.13*power,'triangle',.18,520);
+   }else if(choice%2===0){ // aves tropicales de llamada doble
+     soundEvent(900,1760,.18,.11*power,'sine');
+     soundEvent(1650,1120,.22,.13*power,'sine',.21);
+     soundEvent(1130,1920,.16,.08*power,'sine',.46);
+   }else{ // coro de insectos
+     soundEvent(2050,2380,.12,.057*power,'sine');
+     soundEvent(2300,1900,.16,.052*power,'sine',.2);
+   }
+ }else if(env==='desert'){
+   texturedBurst(1.2,.12*power,360+Math.random()*390);
+   if(choice%3===0)soundEvent(390,530,.7,.055*power,'sine');
+ }else if(env==='fire'){
+   // Chispas cercanas y pequeñas explosiones sobre un lecho de brasas muy audible.
+   for(let k=0;k<4;k++)texturedBurst(.045+Math.random()*.16,.12*power,750+Math.random()*2200,k*.13);
+   if(choice%3===0){texturedBurst(1.35,.20*power,260);soundEvent(92,56,.85,.08*power,'sawtooth',0,400);}
+ }
+}
+function startWildlife(){if(wildlifeTimer)return;wildlifeTimer=setInterval(wildlifeAccent,650)}
+function stopWildlife(){if(wildlifeTimer){clearInterval(wildlifeTimer);wildlifeTimer=null}}
+
+function named(m){return names[(m%12+12)%12]+(Math.floor(m/12)-1)}
+function chordSound(midi,at,dur,amp,type){if(!ac||!active)return;let osc=ac.createOscillator(),env=ac.createGain(),lp=ac.createBiquadFilter();osc.type=type;osc.frequency.value=440*Math.pow(2,(midi-69)/12);lp.type='lowpass';lp.frequency.value=1500+heat*1000;env.gain.setValueAtTime(.0001,at);env.gain.exponentialRampToValueAtTime(amp,at+.08);env.gain.exponentialRampToValueAtTime(.0001,at+dur);osc.connect(lp);lp.connect(env);env.connect(master);osc.start(at);osc.stop(at+dur+.05)}
+function nextMusic(){if(!active)return;if(position){let p=country(position.lon,position.lat),sc=p?p[4]:[0,2,3,5,7,9,11];let base=45+Math.round(heat*18);let rootMidi=Math.max(36,Math.min(72,base)),n=rootMidi+sc[(step*3+Math.floor(hash(step,region.length)*sc.length))%sc.length];let now=ac.currentTime;chordSound(n,now,.72,.07,'triangle');chordSound(n-12,now,1,.018,'sine');if(step%3===0)chordSound(n+7,now,1,.023,'sine');let panel=byId('tw-notes'),tag=document.createElement('span');tag.textContent=named(n);if(panel.textContent.includes('—'))panel.textContent='';panel.appendChild(tag);while(panel.children.length>14)panel.firstChild.remove();step++}musicTimer=setTimeout(nextMusic,420+Math.round((1-heat)*260))}
+function audioOn(){
+ if(!initAudio())return;active=true;
+ byId('tw-audio').textContent='♫ Audio On';byId('tw-pause').textContent='■ Mute';
+ startWildlife();if(!musicTimer)nextMusic();if(position)setAtmospheres(heat,true);
+}
+function audioOff(){
+ active=false;if(musicTimer)clearTimeout(musicTimer);musicTimer=null;
+ stopWildlife();setAtmospheres(heat,false);
+ byId('tw-audio').textContent='▶ Enable Sound Experience';
+}
+function setPosition(x,y,autoplay){
+ const p=inverse(x,y);
+ if(!p){position=null;heat=0;setAtmospheres(0,false);return}
+ position=p;heat=thermal(p.lon,p.lat);
+ const name=country(p.lon,p.lat),env=environmentFor(heat);
+ region=name?name[0]:(land(p.lon,p.lat)?'Land Area':'Ocean');
+ byId('tw-place').textContent=region;
+ byId('tw-coords').textContent=`${p.lat.toFixed(1)}° lat · ${p.lon.toFixed(1)}° lon`;
+ byId('tw-temp').textContent=Math.round(heat*100)+'% intensity';
+ byId('tw-heatcursor').style.left=(heat*98)+'%';
+ byId('tw-heatlabel').textContent=env.name+' · '+env.detail;
+ byId('tw-soundtitle').textContent=env.name;
+ if(lastVisualZone!==env.key){lastVisualZone=env.key;window.dispatchEvent(new CustomEvent('earthsense:environment',{detail:{name:env.name,key:env.key,region,intensity:Math.round(heat*100)}}));}
+ byId('tw-instrument').textContent=env.instrument+(name?' · '+name[3]:'');
+ if(autoplay&&!active)audioOn();setAtmospheres(heat,active);
+}
+
+function draw(t){ctx.clearRect(0,0,W,H);for(let i=0;i<95;i++){ctx.fillStyle=`rgba(198,225,255,${.2+hash(i,9)*.6})`;ctx.fillRect(hash(i,2)*W,hash(i,5)*H,1.4,1.4)}const rad=R(),cx=W/2,cy=H/2;let g=ctx.createRadialGradient(cx,cy,rad*.7,cx,cy,rad*1.23);g.addColorStop(0,'#12caff00');g.addColorStop(.8,'#148bff40');g.addColorStop(1,'#148bff00');ctx.fillStyle=g;ctx.beginPath();ctx.arc(cx,cy,rad*1.23,0,Math.PI*2);ctx.fill();
+for(let lat=-88;lat<89;lat+=2.7){for(let lon=-180;lon<180;lon+=2.7){let p=project(lon,lat);if(p.z<0)continue;let l=land(lon,lat),v=thermal(lon,lat),sz=Math.max(2.1,rad*.043);ctx.fillStyle=l?'#34373d':color(v,true);ctx.fillRect(cx+p.x*rad-sz/2,cy+p.y*rad-sz/2,sz,sz)}}
+ctx.beginPath();ctx.arc(cx,cy,rad,0,Math.PI*2);ctx.strokeStyle='#8fefff';ctx.lineWidth=1.5;ctx.shadowBlur=12;ctx.shadowColor='#11bfff';ctx.stroke();ctx.shadowBlur=0;
+if(position){ctx.beginPath();ctx.arc(position.x,position.y,12+heat*9,0,Math.PI*2);ctx.strokeStyle=environmentFor(heat).color;ctx.lineWidth=2.5;ctx.shadowColor=environmentFor(heat).color;ctx.shadowBlur=18;ctx.stroke();ctx.shadowBlur=0;}
+if(auto){rot+=.00038}
+// Gentle automatic rotation only. Thumb gestures do not control the globe.
+thumbIsActive=false;
+// Seguimiento exclusivo de mano por la cámara. Reutiliza el detector MediaPipe existente.
+// Proyecta la posición normalizada del índice sobre el disco del planeta, con bordes seguros.
+const handReady=typeof tracking!=='undefined' && tracking.mode==='hand' && tracking.enabled && tracking.pointing && tracking.smoothTip && typeof state!=='undefined' && state.cameraReady;
+if(handReady){
+  const tip=tracking.smoothTip;
+  const mirror=state.mirrored!==false;
+  const tx=mirror?1-tip.x:tip.x;
+  const ty=tip.y;
+  let sx=(tx-.5)*1.83,sy=(ty-.5)*1.83;
+  const len=Math.hypot(sx,sy);
+  if(len>.95){sx=sx/len*.95;sy=sy/len*.95}
+  const x=W/2+sx*R(),y=H/2+sy*R();
+  lastHandTime=performance.now();handDetected=true;
+  if(!prevHand||Math.hypot(x-prevHand.x,y-prevHand.y)>1.0||!position){
+    prevHand={x,y};directPosition={x:x/W,y:y/H};
+    setPosition(x,y,false);
+  }
+  byId('tw-handstate').textContent='☝ Index finger: explore the planet and hear its soundscapes';
+}else{
+  prevHand=null;
+  if(performance.now()-lastHandTime>500){
+    handDetected=false;position=null;heat=0;
+    byId('tw-handstate').textContent=(typeof state!=='undefined' && state.cameraReady?'✋ Point with your index finger to listen':'Camera Off');
+  }
+}
+if(ac&&(!position||!active))setAtmospheres(heat,false);
+requestAnimationFrame(draw)}
+// El globo NO responde al mouse: solo a los datos reales del detector de manos.
+// Se conservan botones de zoom, rotación y pantalla completa para accesibilidad.
+async function startCameraAndSound(){
+  if(booting)return;
+  booting=true;
+  const b=byId('tw-start');b.disabled=true;
+  b.textContent='◌ Preparing Camera…';
+  // AudioContext debe desbloquearse durante este gesto del usuario.
+  audioOn();
+  try{
+    if(typeof tracking!=='undefined'&&tracking.mode==='mouse'){
+      tracking.mode='hand';
+      const mouseToggle=byId('mouseMode');if(mouseToggle)mouseToggle.checked=false;
+    }
+    if(!state.cameraReady && !state.cameraPending)await startCamera();
+    if(state.cameraReady){
+      window.dispatchEvent(new CustomEvent('earthsense:camera',{detail:{ready:true}}));
+      const localVideo=byId('tw-camera');
+      if(localVideo.srcObject!==state.stream)localVideo.srcObject=state.stream;
+      localVideo.play().catch(()=>{});
+      startTracking();
+      b.textContent='✓ Camera and Sound Active';
+      byId('tw-overlay').textContent='The globe rotates slowly · ☝ Point to explore ocean, rainforest, desert, or fire';
+      byId('tw-handstate').textContent='Looking for a Hand…';
+    }else{
+      b.textContent='📷 Retry Camera and Sound';
+      byId('tw-handstate').textContent='Camera Permission Pending or Denied';window.dispatchEvent(new CustomEvent('earthsense:camera',{detail:{ready:false}}));
+      audioOff();
+    }
+  }catch(error){
+    b.textContent='📷 Retry Camera and Sound';
+    byId('tw-handstate').textContent='Check Camera Permissions';
+    audioOff();console.warn('[EarthSense] Camera startup:',error);
+  }finally{b.disabled=false;booting=false}
+}
+byId('tw-start').addEventListener('click',startCameraAndSound);
+byId('tw-audio').onclick=audioOn;byId('tw-pause').onclick=audioOff;byId('tw-volume').addEventListener('input',e=>{volumeLevel=Number(e.target.value)/100;byId('tw-volume-value').textContent=e.target.value+' %';if(ac&&master)master.gain.setTargetAtTime(volumeLevel,ac.currentTime,.06)});byId('tw-spin').onclick=e=>{auto=!auto;e.currentTarget.textContent='⟳ Rotation: '+(auto?'active':'stopped')};byId('tw-zoomin').onclick=()=>zoom=Math.min(1.7,zoom*1.15);byId('tw-zoomout').onclick=()=>zoom=Math.max(.68,zoom/1.15);byId('tw-full').onclick=async()=>{try{if(document.fullscreenElement===root)await document.exitFullscreen();else await root.requestFullscreen()}catch(e){byId('tw-overlay').textContent='Full screen is unavailable in this context'}};
+window.addEventListener('pagehide',audioOff);size();new ResizeObserver(size).observe(can);requestAnimationFrame(draw);
+})();
+</script>
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id);
+const el=$('accessibleLydia');if(!el||el.dataset.ready)return;el.dataset.ready='1';
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let synth=window.speechSynthesis,voice=null,recognition=null,listenRequested=false,recognizing=false,speaking=false,canSpeak=true,started=false;
+let silenceCount=0,lastRegion='',lastAnnouncement=0,retryHandle=null,announcingCamera=false;
+let microphoneAttempted=false,sessionListeningStarted=false;
+const guide='Welcome to EarthSense. I am LYDIA, your audio exploration guide. Before using this experience, please ask a support person to help verify that the camera can see your hand and that the audio is audible. First, allow Microsoft Edge to access the camera. For voice commands, allow microphone access separately. Place one hand in front of the camera in good lighting. Earth rotates slowly on its own. Point with your index finger to explore. Blue regions sound like ocean waves and seagulls. Green regions sound like the rainforest and its wildlife. Orange regions sound like desert winds. Red regions sound like roaring fire. These are sound simulations, not real temperatures. You can say: Lydia, help; Lydia, status; Lydia, play video; or Lydia, stop sound. If listening stops, select the Listen for a Voice Command button.';
+function status(t){$('aj-status').textContent=t}
+function chooseVoice(){
+ if(!synth)return;
+ const voices=synth.getVoices();
+ // Prefer English female-sounding neural or natural voices available in Microsoft Edge/Windows.
+ const preferred=/aria|jenny|ava|emma|sonia|libby|hazel|susan|samantha|victoria|zira|female|natural.*(english|united states|united kingdom)/i;
+ const english=voices.filter(v=>/^en(?:-|$)/i.test(v.lang));
+ voice=english.find(v=>preferred.test(v.name)&&/^en-US$/i.test(v.lang))
+   ||english.find(v=>preferred.test(v.name))
+   ||english.find(v=>/^en-US$/i.test(v.lang))
+   ||english[0]||null;
+}
+if(synth){chooseVoice();synth.addEventListener?.('voiceschanged',chooseVoice)}
+function haltRecognition(){if(retryHandle){clearTimeout(retryHandle);retryHandle=null}if(recognition){const old=recognition;recognition=null;try{old.abort()}catch(e){}}recognizing=false}
+function say(text,{resume=true}={}){
+ if(!canSpeak||!synth){status(text);return}
+ // Do not stop and restart the microphone every time LYDIA speaks.
+ // Spoken feedback is ignored by the command parser while LYDIA is talking.
+ synth.cancel();speaking=true;status('LYDIA: '+text);
+ const utterance=new SpeechSynthesisUtterance(text);utterance.lang=voice?.lang||'en-US';utterance.rate=.92;utterance.pitch=1.10;utterance.volume=.96;if(voice)utterance.voice=voice;
+ const finish=()=>{if(!speaking)return;speaking=false;};
+ utterance.onend=finish;utterance.onerror=finish;
+ try{synth.speak(utterance)}catch(e){speaking=false;status('The browser voice could not start. Select Hear Instructions.')}
+}
+function normal(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9 ]+/g,' ').replace(/\s+/g,' ').trim()}
+function isCameraOn(){return typeof state!=='undefined'&&Boolean(state.cameraReady)}
+function describeStatus(){return (isCameraOn()?'Camera on. ':'Camera off. ')+(typeof tracking!=='undefined'&&tracking.model==='ready'?'Hand tracker ready. ':'Hand tracker may need an internet connection. ')+'Current soundscape: '+($('tw-soundtitle')?.textContent||'not explored')+'.'}
+function pauseAll(){const b=$('tw-pause');if(b)b.click()}
+function changeVolume(delta){const input=$('tw-volume');if(!input)return;input.value=String(Math.max(0,Math.min(100,Number(input.value)+delta)));input.dispatchEvent(new Event('input',{bubbles:true}));say('Volume '+input.value+' percent.')}
+function runCommand(raw){
+ const spoken=normal(raw);
+ const wake=/^(?:hey\s+)?(?:lydia|lidia)(?:\s+please)?(?:\s+|$)/;
+ if(!wake.test(spoken))return;
+ const t=spoken.replace(wake,'').trim();
+ if(!t){say('I am listening. Say help, or ask me to turn on the camera.');return}
+ if(/help|instructions|explain|how does it work|what can i say/.test(t)){say(guide);return}
+ if(/status|what am i hearing|where am i|what is happening/.test(t)){say(describeStatus());return}
+ if(/camera|experience|exploration|start everything/.test(t)&&/turn on|enable|start|activate|open/.test(t)){
+  if(isCameraOn()){say('The camera is already on. Point with your index finger to explore.');return}
+  say('I will start the camera and sound. If Microsoft Edge asks for permission, select Allow.');
+  $('tw-start')?.click();return;
+ }
+ if(/volume up|louder|increase volume|turn up/.test(t)){changeVolume(10);return}
+ if(/volume down|quieter|decrease volume|turn down/.test(t)){changeVolume(-10);return}
+ if(/stop|pause|mute|turn off/.test(t)&&/sound|music|audio|soundscape|everything/.test(t)){pauseAll();say('The ambient sounds are paused.');return}
+ if(/start|enable|resume|play|turn on/.test(t)&&/sound|music|audio|soundscape/.test(t)){$('tw-audio')?.click();say('Ambient sounds enabled.');return}
+ if(/stop|pause|disable/.test(t)&&/rotation|spinning|world/.test(t)){if($('tw-spin')?.textContent.includes('active'))$('tw-spin').click();say('Automatic rotation stopped.');return}
+ if(/rotate|spin|turn the world/.test(t)){if($('tw-spin')?.textContent.includes('stopped'))$('tw-spin').click();say('Slow automatic rotation enabled.');return}
+ if(/zoom in|closer|move closer/.test(t)){$('tw-zoomin')?.click();say('Zooming in on the planet.');return}
+ if(/zoom out|farther|move away/.test(t)){$('tw-zoomout')?.click();say('Zooming out from the planet.');return}
+ if(/full screen|fullscreen/.test(t)){$('tw-full')?.click();say('Requesting full screen mode. Your browser may require a button or key press.');return}
+ if(/hand tracking|recognize my hand|detect my hand/.test(t)){if(!isCameraOn())say('First turn on the camera. Say Lydia, turn on the camera.');else{try{startTracking();say('Hand tracking enabled. Hold your hand in front of the camera.')}catch(e){say('I could not start tracking. Check your internet connection.')}}return}
+ if(/turn off camera|stop camera|disable camera/.test(t)){if(isCameraOn()){try{stopCamera();say('Camera turned off.')}catch(e){say('I could not turn off the camera.')}}else say('The camera is already off.');return}
+ if(/play video|start video/.test(t)){if(!$('videoSource')?.src){say('No video has been loaded. Select Load Video first.')}else{$('playButton')?.click();say('Video playback requested.')}return}
+ if(/pause video|stop video/.test(t)){if(!$('videoSource')?.paused)$('playButton')?.click();say('Video paused.');return}
+ if(/skip video|fast forward/.test(t)){$('forwardButton')?.click();say('Skipping forward ten seconds.');return}
+ if(/play sonification|sonify video/.test(t)){$('sonicPlay')?.click();say('Starting video sonification, if a video is loaded.');return}
+ if(/more transparency|increase transparency/.test(t)){const input=$('transparency');if(input){input.value=Math.min(100,Number(input.value)+10);input.dispatchEvent(new Event('input',{bubbles:true}))}say('Transparency increased.');return}
+ if(/less transparency|decrease transparency/.test(t)){const input=$('transparency');if(input){input.value=Math.max(0,Number(input.value)-10);input.dispatchEvent(new Event('input',{bubbles:true}))}say('Transparency decreased.');return}
+ if(/stop listening|mute microphone|turn off microphone/.test(t)){listenRequested=false;haltRecognition();say('I have stopped listening for voice commands.',{resume:false});return}
+ say('I did not recognize that command. Say Lydia, help, to hear your options.');
+}
+function listenOnce(quiet=false){
+ if(!listenRequested||recognizing||microphoneAttempted)return;
+ microphoneAttempted=true;
+ if(!SR){if(!quiet)say('Speech recognition is unavailable in this browser. Try an updated version of Microsoft Edge.');return}
+ const rec=new SR();recognition=rec;rec.lang='en-US';rec.continuous=true;rec.interimResults=false;rec.maxAlternatives=1;
+ rec.onstart=()=>{recognizing=true;silenceCount=0;status('Microphone listening. Say: Lydia, turn on the camera, or Lydia, help.')};
+ rec.onresult=e=>{if(speaking)return;for(let i=e.resultIndex;i<e.results.length;i++){if(!e.results[i].isFinal)continue;const raw=e.results[i][0].transcript.trim();const n=normal(raw);if(/^(?:hey\s+)?(?:lydia|lidia)(?:\s+please)?(?:\s+|$)/.test(n)){runCommand(raw);break}}};
+ rec.onerror=e=>{if(e.error==='not-allowed'||e.error==='service-not-allowed'){listenRequested=false;status('Microphone permission denied. You can select Listen for a Voice Command again.')}else if(e.error==='no-speech'){silenceCount++}else if(e.error==='network'){listenRequested=false;status('Speech recognition is offline. The camera and sound still work.')}};
+ rec.onend=()=>{if(recognition===rec)recognition=null;recognizing=false;
+   // Never automatically request microphone access again. Edge may close Web Speech
+   // recognition on its own. Camera and nature sounds remain available.
+   if(listenRequested){listenRequested=false;status('Voice listening ended. Camera and soundscapes remain active. Reload the page to restart voice commands.');}
+ };
+ try{rec.start()}catch(e){listenRequested=false;status('I could not start the microphone. Check Edge permissions.')}
+}
+function enableListen(){if(microphoneAttempted)return;listenRequested=true;silenceCount=0;listenOnce();}
+$('aj-start').addEventListener('click',()=>{
+ if(started)return; // Only one device activation attempt per page session.
+ started=true;canSpeak=true;
+ // Both APIs are initiated from the same user gesture. Edge controls each permission.
+ $('tw-start')?.click();
+ if(SR)enableListen();
+ // Do not restart recognition when LYDIA speaks; it stays in one listening session.
+ say('Hello, I am LYDIA. Welcome to EarthSense. This experience requires assistance from another person to check the camera and confirm that the audio works. If Microsoft Edge asks, please have your helper verify and allow camera and microphone permissions. The planet rotates slowly on its own. Point with your index finger to explore oceans, forests, deserts, and fire. Say Lydia, help, for instructions.',{resume:false});
+});
+$('aj-listen').addEventListener('click',()=>{
+ if(listenRequested){listenRequested=false;haltRecognition();status('Microphone stopped.')}else if(!microphoneAttempted){enableListen()}else status('The microphone has already been requested in this session.');
+});
+$('aj-guide').addEventListener('click',()=>{canSpeak=true;say(guide)});
+$('aj-silence').addEventListener('click',()=>{listenRequested=false;haltRecognition();if(synth)synth.cancel();speaking=false;pauseAll();status('LYDIA and sounds are paused. You can restart whenever you want.')});
+window.addEventListener('earthsense:camera',e=>{if(!started)return;status(e.detail.ready?'Camera active. The planet rotates slowly. Use your index finger to listen.':'Camera unavailable. Check Edge site permissions and reload the page.');});
+window.addEventListener('earthsense:environment',e=>{
+ if(!started||!isCameraOn())return;
+ const key=e.detail.key,now=Date.now();if(key===lastRegion||now-lastAnnouncement<6500)return;
+ lastRegion=key;lastAnnouncement=now;
+ const phrases={water:'You are now in the ocean. Listen to waves and seabirds.',jungle:'You are in the rainforest. Listen to birds, insects, and animals.',desert:'You are now exploring the desert. Listen to wind and sand.',fire:'You have entered a fire region. Listen to flames and crackling sparks.'};
+ // Avoid speech interrupting the continuous sound every time the finger crosses a boundary.
+ status(phrases[key]||'You have moved into a new soundscape.');
+});
+// Try a single welcome on page load. If Edge blocks speech until interaction, the accessible start button repeats it.
+window.addEventListener('load',()=>{status('LYDIA is ready. Select Start LYDIA with Voice and Camera. Allow camera access in Microsoft Edge. Microphone access is enabled separately.');});
+window.LYDIA_ACCESSIBLE={runCommand,speak:say,help:()=>say(guide),status:describeStatus};
+})();
+</script>
+
+
+<script>
+(()=>{
+'use strict';
+const start=document.getElementById('solo-start');
+start.addEventListener('click',()=>{
+  document.getElementById('aj-start').click();
+  start.textContent='Experience started';
+  start.disabled=true;
+}, {once:true});
+})();
+</script>
+</body>
+</html>

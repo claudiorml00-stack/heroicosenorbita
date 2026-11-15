@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Explore Earth data through sound with Heroicos en Órbita.">
+<title>Earth Jukebox · Heroicos en Órbita</title>
+<style>
+* { box-sizing: border-box; }
+body { margin: 0; color: #fff; background: #08152b; font: 16px/1.45 Inter, system-ui, sans-serif; }
+main { position: relative; isolation: isolate; background: #08152b url(earth.jpg) center/cover no-repeat; }
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); grid-template-rows: repeat(2, minmax(0, 1fr)); height: 100vh; height: 100dvh; min-height: 340px; }
+.identity, .badge, .status { position: absolute; z-index: 2; pointer-events: none; }
+.identity { top: max(.6rem, env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: .55rem; padding: .35rem .7rem; background: #08152bf2; border: 1px solid #6281a9; border-radius: 99px; white-space: nowrap; font-size: clamp(1.3rem, 4vw, 1.66rem); font-weight: 800; letter-spacing: .055em; }
+.identity img { border-radius: 50%; }
+.badge { left: 50%; top: 50%; transform: translate(-50%, -50%); margin: 0; width: clamp(76px, 17vmin, 150px); aspect-ratio: 1; display: grid; place-content: center; text-align: center; line-height: 1; font-size: clamp(1rem, 4vmin, 2.25rem); border: 2px solid #f2f7ff; border-radius: 50%; background: radial-gradient(circle at 50% 90%, #153f77, #08152f 72%); box-shadow: 0 0 24px #4184ffa6; }
+.badge span { display: block; margin-top: .35rem; color: #ffb27a; font-size: .38em; letter-spacing: .17em; text-transform: uppercase; }
+.option { display: flex; flex-direction: column; justify-content: center; align-items: center; gap: .4rem; padding: 1.2rem .65rem; min-width: 0; border: 0; background: #07142db8; color: #fff; text-align: center; font: inherit; cursor: pointer; touch-action: manipulation; }
+.option:nth-child(odd) { border-right: 1px solid #89a5cf; }
+.option:nth-child(-n+2) { border-bottom: 1px solid #89a5cf; }
+.option:hover, .option:focus-visible { background: #102e55d9; box-shadow: inset 0 0 0 3px var(--accent); }
+:focus-visible { outline: 3px solid #ffe078; outline-offset: -5px; }
+.icon { color: var(--accent); font-size: clamp(1.4rem, 5vmin, 2.6rem); line-height: 1; }
+.name { font-weight: 800; font-size: clamp(1rem, 4vmin, 2.1rem); line-height: 1.12; }
+.desc { color: #dae6f8; font-size: clamp(.72rem, 2.4vmin, 1rem); }
+.status { bottom: max(.6rem, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: max-content; max-width: 92%; margin: 0; padding: .35rem .7rem; border-radius: .5rem; background: #08152bf2; color: #e4f2ff; text-align: center; font-size: clamp(.68rem, 2vw, .85rem); }
+dialog { max-width: min(28rem, 90%); padding: 1.5rem; border: 1px solid #6584ac; border-radius: 12px; background: #111d31; color: #fff; }
+dialog::backdrop { background: #040810cc; }
+dialog h2 { margin: 0; }
+.close { padding: .65rem 1rem; border: 1px solid #6584ac; border-radius: 8px; background: #142842; color: #fff; font: inherit; cursor: pointer; }
+#welcome { text-align: center; }
+#welcome p { margin-bottom: 0; }
+#welcome button { margin-top: 1rem; }
+#welcome:has(#start:not([hidden])) { overflow: visible; }
+#start:not([hidden])::before { content: ""; position: fixed; inset: 0; cursor: pointer; }
+.identity { max-width: calc(100% - 1rem); white-space: normal; line-height: 1.08; text-align: center; }
+.identity img { flex: none; }
+.centerpiece { position: absolute; z-index: 2; top: 50%; left: 50%; transform: translate(-50%, -50%); display: flex; align-items: center; gap: clamp(.25rem, 1.2vmin, .75rem); pointer-events: none; }
+.centerpiece .badge { position: static; flex: none; transform: none; }
+.mascot { display: block; width: clamp(100px, 23vmin, 210px); height: auto; filter: drop-shadow(0 4px 10px #000b); }
+@media (max-height: 480px) { .option:nth-child(-n+2) { padding-top: 4.5rem; } }
+</style>
+</head>
+<body>
+<main aria-labelledby="titulo">
+<div class="identity"><img src="logo.jpg" alt="" width="64" height="64"><span lang="es">HEROICOS EN ÓRBITA</span></div>
+<div class="centerpiece">
+  <img class="mascot" src="lydia-mascot.png" alt="" width="1374" height="1145">
+  <h1 class="badge" id="titulo">Lydia <span>Jukebox</span></h1>
+</div>
+<div class="grid" id="apps">
+<button class="option" style="--accent:#84ccff" aria-labelledby="n1" aria-describedby="d1"><span class="icon" aria-hidden="true">◉</span><span class="name" id="n1">Sensory Climate Globe</span><span class="desc" id="d1">Use your webcam and point with your finger to explore temperatures around the world through sound.</span></button>
+<button class="option" style="--accent:#eff5ff" aria-labelledby="n2" aria-describedby="d2"><span class="icon" aria-hidden="true">♫</span><span class="name" id="n2">Climate Change Image Explorer</span><span class="desc" id="d2">Use your webcam to explore images of climate change through sound.</span></button>
+<button class="option" style="--accent:#ffad72" aria-labelledby="n3" aria-describedby="d3"><span class="icon" aria-hidden="true">≋</span><span class="name" id="n3">Color-to-Music Library</span><span class="desc" id="d3">Listen to music created by mapping image colors to sounds across the visible spectrum.</span></button>
+<button class="option" style="--accent:#82b6ff" aria-labelledby="n4" aria-describedby="d4"><span class="icon" aria-hidden="true">✧</span><span class="name" id="n4">About the Project</span><span class="desc" id="d4">Meet the team and learn about the project.</span></button>
+</div>
+<p class="status" id="status" role="status">Hover to listen. Click to open.</p>
+</main>
+<dialog aria-labelledby="modal-title" aria-describedby="modal-text"><h2 id="modal-title"></h2><p id="modal-text">This feature will be available in a future version.</p><form method="dialog"><button class="close" autofocus>Back to the menu</button></form></dialog>
+<dialog id="welcome" aria-labelledby="welcome-title" aria-describedby="welcome-text">
+<h2 id="welcome-title">Welcome to Lydia Jukebox</h2>
+<p id="welcome-text">Welcome to an immersive sound and sensory experience. There are four features to explore, one in each corner of the screen. Move your mouse to hear a description of each one.</p>
+<button type="button" class="close" id="start" hidden>Play welcome message</button>
+</dialog>
+<script>
+const status = document.querySelector('#status');
+const dialog = document.querySelector('dialog');
+const welcome = document.querySelector('#welcome');
+const start = document.querySelector('#start');
+const grid = document.querySelector('.grid');
+const clips = ['explore', 'listen', 'create', 'project'];
+const appPaths = ['./sensory-climate-globe.html', './climate-change-image-explorer.html', './color-music-library.html', './about-the-project.html'];
+const player = new Audio();
+let previous, hovered;
+
+function play(clip) {
+  player.src = 'audio/' + clip + '.mp3';
+  return player.play();
+}
+
+function announce(clip) {
+  play(clip).catch(error => {
+    if (error.name !== 'AbortError') status.textContent = 'Audio is unavailable in this browser.';
+  });
+}
+
+function finishWelcome() {
+  welcome.close();
+  grid.inert = false;
+  status.textContent = 'Hover to listen. Click to open.';
+}
+
+async function playWelcome() {
+  start.hidden = true;
+  try {
+    await play('welcome');
+  } catch {
+    start.hidden = false;
+    start.focus();
+  }
+}
+
+if (location.hash === '#apps') {
+  history.replaceState(history.state, '', location.pathname + location.search);
+} else {
+  grid.inert = true;
+  welcome.addEventListener('cancel', event => event.preventDefault());
+  welcome.showModal();
+  player.addEventListener('ended', () => {
+    if (welcome.open) finishWelcome();
+  });
+  start.addEventListener('click', playWelcome);
+  welcome.addEventListener('click', event => {
+    if (event.target === welcome && !start.hidden) playWelcome();
+  });
+  playWelcome();
+}
+
+grid.querySelectorAll('.option').forEach((button, index) => {
+  const name = button.querySelector('.name').textContent;
+  function describe(event) {
+    if (event.pointerType === 'touch' || welcome.open || dialog.open || hovered === button) return;
+    hovered = button;
+    announce(clips[index]);
+  }
+
+  button.addEventListener('pointerenter', describe);
+  button.addEventListener('pointermove', describe);
+  button.addEventListener('pointerleave', () => {
+    if (hovered !== button) return;
+    hovered = null;
+    if (!dialog.open) player.pause();
+  });
+  button.addEventListener('focus', () => {
+    if (!welcome.open && button.matches(':focus-visible')) announce(clips[index]);
+  });
+  button.addEventListener('click', () => {
+    if (welcome.open) return;
+    const appPath = appPaths[index];
+    if (appPath) {
+      player.pause();
+      location.assign(appPath);
+      return;
+    }
+    previous = button;
+    dialog.querySelector('h2').textContent = name;
+    dialog.showModal();
+    announce('notice');
+  });
+});
+dialog.addEventListener('close', () => {
+  player.pause();
+  hovered = null;
+  previous?.focus();
+});
+</script>
+</body>
+</html>
